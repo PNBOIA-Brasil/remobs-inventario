@@ -48,3 +48,6 @@ desktop.ini
 .env.test
 .env.production
 !frontend/.env.production
+
+# Conflitos do Syncthing
+*.sync-conflict-*
