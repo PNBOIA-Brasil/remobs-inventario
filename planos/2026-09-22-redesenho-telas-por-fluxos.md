@@ -71,3 +71,34 @@ Canvas de design (privado, compartilhável pelo menu Compartilhar): https://clau
 ## Resultado
 
 Proposta de design entregue para revisão. A implementação depende de aprovação e será planejada por etapa.
+
+## Execução e publicação (2026-09-22)
+
+Autorizado pelo usuário: implementar as seis etapas em sequência, com um commit por etapa, e publicar em produção (profile `aws-remobs`, conta `220790920077`, `sa-east-1`). O fluxo de retirada do paiol, que estava implementado e sem commit, foi commitado antes, conforme `planos/2026-09-22-implementacao-retirada-paiol.md`.
+
+Decisões:
+
+- Nenhuma permissão nova no `remobs-users`. Entrada: `inventory:item:update` ou `inventory:withdrawal:deliver`. Aquisição: leitura com `inventory:item:read`; decisão com `inventory:movement:approve`. Não há relogin obrigatório por causa destas etapas.
+- A aprovação por linha não existia no backend e foi adicionada (`lines` opcional no `approve`).
+- Estado na devolução (avariado, extraviado) ficou fora: não estava entre as seis etapas.
+- Cache PWA mantido em `remobs-inventario-v12`, que já troca o `v11` de produção.
+
+Commits: `182fec0` (etapa 1), `2b6c5ff` (2), `7f9f73d` (3), `cff34df` (4), `28290cf` (5), `690d9e2` (6).
+
+Validação local: backend 35 testes, frontend 51 testes e `tsc -b` sem erro; migrações `0005` e `0006` com upgrade, downgrade e upgrade em SQLite.
+
+Publicação:
+
+| Item | Valor |
+|------|-------|
+| Banco | `0003_item_brand_model_idx` → `0006_acquisition_needs` (23 tabelas) |
+| Imagem ECR | `prod-2026-09-22-fluxos` |
+| Task definition | `remobs-inventario-backend:14`, rollout `COMPLETED` |
+| API | `healthz` 200; `/inventory/receipts` e `/inventory/acquisitions` no OpenAPI |
+| Amplify | app `d1oidnxd2f4saq`, branch `prod`, job `35` `SUCCEED`, bundle `index-BAGZLMrd.js`, `sw.js` `v12` |
+
+Rollback: serviço ECS de volta para `remobs-inventario-backend:13` e republicação do job 34 no Amplify. As tabelas e colunas novas são aditivas e podem ficar.
+
+Pendência encontrada, anterior a este deploy: acesso direto a rotas com id (`/app/inventory/<id>`, `/app/withdrawals/<id>`) responde 404 sem corpo, apesar da regra `404-200` do Amplify. A navegação dentro do app funciona. A correção é uma regra de reescrita no Amplify e depende de autorização.
+
+Roteiro de teste em produção: seguir a seção B de `planos/2026-09-22-implementacao-retirada-paiol.md` e, em seguida, registrar uma entrada de um item com necessidade aberta e conferir a baixa em “Aquisições”.
