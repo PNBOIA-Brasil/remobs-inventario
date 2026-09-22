@@ -12,6 +12,8 @@ const routes = [
   "app/inventory/new",
   "app/movements",
   "app/movements/new",
+  "app/withdrawals",
+  "app/withdrawals/new",
   "app/alerts",
   "app/locations",
   "app/locations/new",

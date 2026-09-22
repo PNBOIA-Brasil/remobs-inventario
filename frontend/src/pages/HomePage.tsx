@@ -68,7 +68,7 @@ export default function HomePage() {
 
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
         <Button startIcon={<AssignmentTurnedInIcon />} variant="contained" onClick={() => navigate("/app/movements/new")}>
-          Solicitar saída
+          Solicitar retirada
         </Button>
         <Button startIcon={<FactCheckIcon />} variant="outlined" onClick={() => navigate("/app/checklists/new")}>
           Novo checklist

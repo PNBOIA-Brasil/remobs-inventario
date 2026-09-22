@@ -28,6 +28,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import LoadingState from "../components/LoadingState";
 import StatusChip from "../components/StatusChip";
 import { inventoryService } from "../services/inventoryService";
+import { auditActionLabel, movementTypeLabel } from "../withdrawalLabels";
 import { useAuth } from "../state/AuthContext";
 import { useSnackbar } from "../state/SnackbarContext";
 import type { EntityFile, EntityFileRole, InventoryItem, ItemHistory } from "../types";
@@ -179,7 +180,7 @@ export default function InventoryDetailPage() {
             </Typography>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1} useFlexGap flexWrap="wrap">
               <Button startIcon={<AssignmentTurnedInIcon />} variant="contained" onClick={() => navigate("/app/movements/new", { state: { itemId: item.id } })}>
-                Solicitar saída
+                Solicitar retirada
               </Button>
               {canUpdate && (
                 <Button variant="outlined" onClick={() => navigate(`/app/inventory/${item.id}/edit`)}>
@@ -382,17 +383,19 @@ export default function InventoryDetailPage() {
             <Typography variant="h6">Histórico</Typography>
             {!history && <Alert severity="info">Histórico não carregado.</Alert>}
             {history?.movements.length === 0 && history.audit_logs.length === 0 && <Alert severity="info">Sem histórico para este item.</Alert>}
-            {history?.movements.slice(0, 5).map((movement) => (
+            {history?.movements.slice(0, 8).map((movement) => (
               <Stack key={movement.id} direction="row" justifyContent="space-between" gap={1}>
                 <Typography>
-                  {movement.quantity} {item.unit} de {movement.from_location_name || "origem"} para {movement.to_location_name || "destino"}
+                  {movementTypeLabel(movement.movement_type)}: {movement.quantity} {item.unit} de {movement.from_location_name || "origem"}
+                  {movement.to_location_name ? ` para ${movement.to_location_name}` : ""}
                 </Typography>
                 <StatusChip status={movement.status} />
               </Stack>
             ))}
-            {history?.audit_logs.slice(0, 5).map((log) => (
+            {history?.audit_logs.slice(0, 8).map((log) => (
               <Typography key={log.id} variant="body2" color="text.secondary">
-                {new Date(log.occurred_at).toLocaleString("pt-BR")} • {log.action} • {log.actor_username || "Sistema"}
+                {new Date(log.occurred_at).toLocaleString("pt-BR")} • {auditActionLabel(log.action)} • {log.actor_username || "Sistema"}
+                {log.reason ? ` • ${log.reason}` : ""}
               </Typography>
             ))}
           </Stack>

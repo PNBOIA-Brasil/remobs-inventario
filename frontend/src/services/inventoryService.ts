@@ -10,6 +10,7 @@ import type {
   InventoryItem,
   ItemHistory,
   Movement,
+  WithdrawalOrder,
   InventoryLocation,
   Platform,
   PlatformDetail,
@@ -248,6 +249,59 @@ export const inventoryService = {
 
   async rejectMovement(id: string, reason: string): Promise<Movement> {
     const response = await inventoryApi.post<Movement>(`/inventory/movements/${id}/reject`, { reason });
+    return response.data;
+  },
+
+  async listWithdrawals(): Promise<ApiList<WithdrawalOrder>> {
+    const response = await inventoryApi.get<ApiList<WithdrawalOrder>>("/inventory/withdrawals");
+    return response.data;
+  },
+
+  async getWithdrawal(id: string): Promise<WithdrawalOrder> {
+    const response = await inventoryApi.get<WithdrawalOrder>(`/inventory/withdrawals/${id}`);
+    return response.data;
+  },
+
+  async requestWithdrawal(payload: {
+    reason: string;
+    lines: Array<{ item_id: string; quantity: number; from_location_id: string }>;
+  }): Promise<WithdrawalOrder> {
+    const response = await inventoryApi.post<WithdrawalOrder>("/inventory/withdrawals", payload);
+    return response.data;
+  },
+
+  async approveWithdrawal(id: string, reason: string): Promise<WithdrawalOrder> {
+    const response = await inventoryApi.post<WithdrawalOrder>(`/inventory/withdrawals/${id}/approve`, { reason });
+    return response.data;
+  },
+
+  async rejectWithdrawal(id: string, reason: string): Promise<WithdrawalOrder> {
+    const response = await inventoryApi.post<WithdrawalOrder>(`/inventory/withdrawals/${id}/reject`, { reason });
+    return response.data;
+  },
+
+  async deliverWithdrawal(id: string, reason: string): Promise<WithdrawalOrder> {
+    const response = await inventoryApi.post<WithdrawalOrder>(`/inventory/withdrawals/${id}/deliver`, { reason });
+    return response.data;
+  },
+
+  async requestReturn(orderId: string, lineId: string, payload: { quantity: number; reason: string }): Promise<WithdrawalOrder> {
+    const response = await inventoryApi.post<WithdrawalOrder>(`/inventory/withdrawals/${orderId}/lines/${lineId}/return`, payload);
+    return response.data;
+  },
+
+  async requestWriteoff(orderId: string, lineId: string, payload: { quantity: number; reason: string }): Promise<WithdrawalOrder> {
+    const response = await inventoryApi.post<WithdrawalOrder>(`/inventory/withdrawals/${orderId}/lines/${lineId}/writeoff`, payload);
+    return response.data;
+  },
+
+  async acceptCustodyEvent(id: string, reason: string): Promise<WithdrawalOrder> {
+    const response = await inventoryApi.post<WithdrawalOrder>(`/inventory/custody-events/${id}/accept`, { reason });
+    return response.data;
+  },
+
+  async refuseCustodyEvent(id: string, reason: string): Promise<WithdrawalOrder> {
+    const response = await inventoryApi.post<WithdrawalOrder>(`/inventory/custody-events/${id}/refuse`, { reason });
     return response.data;
   },
 

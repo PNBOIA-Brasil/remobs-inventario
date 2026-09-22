@@ -20,7 +20,7 @@ export interface NavigationItem {
 export const navigationItems: NavigationItem[] = [
   { label: "Início", path: "/app/home", icon: DashboardIcon, permissions: [], bottom: true },
   { label: "Inventário", path: "/app/inventory", icon: InventoryIcon, permissions: ["inventory:item:read"], bottom: true },
-  { label: "Operação", path: "/app/movements", icon: AssignmentTurnedInIcon, permissions: ["inventory:movement:request"], bottom: true },
+  { label: "Operação", path: "/app/movements", icon: AssignmentTurnedInIcon, permissions: ["inventory:withdrawal:request", "inventory:movement:request", "inventory:withdrawal:approve"], bottom: true },
   { label: "Alertas", path: "/app/alerts", icon: WarningAmberIcon, permissions: ["inventory:item:read"], bottom: true },
   { label: "Locais", path: "/app/locations", icon: PlaceIcon, permissions: ["location:read"], bottom: false },
   { label: "Plataformas", path: "/app/platforms", icon: HubIcon, permissions: ["platform:read"], bottom: false },

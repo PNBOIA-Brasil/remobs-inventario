@@ -22,24 +22,38 @@ import { inventoryService } from "../services/inventoryService";
 import { useSnackbar } from "../state/SnackbarContext";
 import type { InventoryItem, InventoryLocation, StockBalance } from "../types";
 
-const draftKey = "remobs_movement_request_draft";
+const draftKey = "remobs_withdrawal_request_draft";
+const legacyDraftKey = "remobs_movement_request_draft";
 
-interface DraftState {
+interface LineDraft {
+  key: string;
   itemId: string;
   fromLocationId: string;
   quantity: string;
-  destination: string;
-  toLocationId: string;
+}
+
+interface DraftState {
+  lines: LineDraft[];
   reason: string;
   evidenceNote: string;
 }
 
+function lineKey(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return `linha-${crypto.randomUUID()}`;
+  return `linha-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function newLine(partial?: Partial<LineDraft>): LineDraft {
+  return {
+    key: partial?.key || lineKey(),
+    itemId: partial?.itemId || "",
+    fromLocationId: partial?.fromLocationId || "",
+    quantity: partial?.quantity || "1",
+  };
+}
+
 const defaultDraft: DraftState = {
-  itemId: "",
-  fromLocationId: "",
-  quantity: "1",
-  destination: "Campo",
-  toLocationId: "",
+  lines: [newLine({ key: "linha-1" })],
   reason: "Uso em operação de campo.",
   evidenceNote: "",
 };
@@ -80,13 +94,50 @@ export function originLocationOptions(
   return options;
 }
 
+function readInitialDraft(): DraftState {
+  const saved = localStorage.getItem(draftKey);
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved) as Partial<DraftState>;
+      if (Array.isArray(parsed.lines) && parsed.lines.length > 0) {
+        return {
+          lines: parsed.lines.map((line) => newLine(line)),
+          reason: parsed.reason || defaultDraft.reason,
+          evidenceNote: parsed.evidenceNote || "",
+        };
+      }
+    } catch {
+      localStorage.removeItem(draftKey);
+    }
+  }
+
+  const legacy = localStorage.getItem(legacyDraftKey);
+  if (legacy) {
+    try {
+      const parsed = JSON.parse(legacy) as {
+        itemId?: string;
+        fromLocationId?: string;
+        quantity?: string;
+        reason?: string;
+        evidenceNote?: string;
+      };
+      return {
+        lines: [newLine({ key: "linha-1", itemId: parsed.itemId, fromLocationId: parsed.fromLocationId, quantity: parsed.quantity })],
+        reason: parsed.reason || defaultDraft.reason,
+        evidenceNote: parsed.evidenceNote || "",
+      };
+    } catch {
+      localStorage.removeItem(legacyDraftKey);
+    }
+  }
+
+  return { ...defaultDraft, lines: [newLine({ key: "linha-1" })] };
+}
+
 export default function MovementRequestPage() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [locations, setLocations] = useState<InventoryLocation[]>([]);
-  const [draft, setDraft] = useState<DraftState>(() => {
-    const saved = localStorage.getItem(draftKey);
-    return saved ? { ...defaultDraft, ...JSON.parse(saved) } : defaultDraft;
-  });
+  const [draft, setDraft] = useState<DraftState>(readInitialDraft);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [loadingItems, setLoadingItems] = useState(true);
   const navigate = useNavigate();
@@ -107,83 +158,90 @@ export default function MovementRequestPage() {
             : itemsData.items;
         setItems(mergedItems);
         setLocations(locationsData.items);
-        const preferredItemId = detailedItem?.id || stateItemId || draft.itemId || mergedItems[0]?.id || "";
-        const preferredItem =
-          detailedItem || mergedItems.find((item) => item.id === preferredItemId) || mergedItems[0];
         setDraft((current) => {
-          const itemChanged = Boolean(stateItemId) || current.itemId !== (preferredItem?.id || "");
-          const nextItemId = preferredItem?.id || "";
+          const first = current.lines[0] || newLine({ key: "linha-1" });
+          const preferredItemId = detailedItem?.id || stateItemId || first.itemId || mergedItems[0]?.id || "";
+          const preferredItem = detailedItem || mergedItems.find((item) => item.id === preferredItemId) || mergedItems[0];
+          const itemChanged = Boolean(stateItemId) || first.itemId !== (preferredItem?.id || "");
           const nextOrigin =
-            itemChanged || !current.fromLocationId
-              ? resolveOriginLocationId(preferredItem)
-              : current.fromLocationId;
-          const matchedDestination =
-            locationsData.items.find(
-              (entry) => entry.name.toLowerCase() === (current.destination || "").trim().toLowerCase(),
-            ) || null;
+            itemChanged || !first.fromLocationId ? resolveOriginLocationId(preferredItem) : first.fromLocationId;
           return {
             ...current,
-            itemId: nextItemId,
-            fromLocationId: nextOrigin,
-            toLocationId: matchedDestination?.id || current.toLocationId || "",
-            destination: matchedDestination?.name || current.destination,
+            lines: [{ ...first, itemId: preferredItem?.id || "", fromLocationId: nextOrigin }, ...current.lines.slice(1)],
           };
         });
       })
       .catch(() => undefined)
       .finally(() => setLoadingItems(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stateItemId]);
 
   useEffect(() => {
     localStorage.setItem(draftKey, JSON.stringify(draft));
   }, [draft]);
 
-  const selected = useMemo(() => items.find((item) => item.id === draft.itemId), [draft.itemId, items]);
-  const originOptions = useMemo(() => originLocationOptions(locations, selected), [locations, selected]);
-  const selectedOrigin = useMemo(
-    () => originOptions.find((entry) => entry.id === draft.fromLocationId) || null,
-    [draft.fromLocationId, originOptions],
-  );
-  const available = availableAtLocation(selected, draft.fromLocationId);
-  const selectedDestination = useMemo(() => {
-    if (draft.toLocationId) {
-      return locations.find((entry) => entry.id === draft.toLocationId) || null;
-    }
-    return locations.find((entry) => entry.name.toLowerCase() === draft.destination.trim().toLowerCase()) || null;
-  }, [draft.destination, draft.toLocationId, locations]);
+  const lineErrors = useMemo(() => {
+    return draft.lines.map((line) => {
+      const selected = items.find((item) => item.id === line.itemId);
+      const quantity = Number(line.quantity);
+      const available = availableAtLocation(selected, line.fromLocationId);
+      if (!selected) return "Selecione um material.";
+      if (!line.fromLocationId) return "Selecione uma origem.";
+      if (quantity <= 0) return "Informe quantidade maior que zero.";
+      if (quantity > available) return "Quantidade maior que o estoque disponível.";
+      const duplicate = draft.lines.filter(
+        (candidate) => candidate.itemId === line.itemId && candidate.fromLocationId === line.fromLocationId,
+      );
+      if (duplicate.length > 1) return "Este material já está na lista com a mesma origem.";
+      return null;
+    });
+  }, [draft.lines, items]);
 
-  const quantity = Number(draft.quantity);
   const validationError =
-    !selected ? "Selecione um item." :
-    !draft.fromLocationId ? "Selecione uma origem." :
-    quantity <= 0 ? "Informe quantidade maior que zero." :
-    quantity > available ? "Quantidade maior que o estoque disponível." :
-    draft.destination.trim().length < 1 ? "Informe o destino." :
-    draft.reason.trim().length < 3 ? "Informe o motivo da saída." :
-    null;
+    draft.lines.length < 1 ? "Inclua ao menos um material." :
+    lineErrors.find(Boolean) ||
+    (draft.reason.trim().length < 3 ? "Informe o motivo da retirada." : null);
 
-  function update(field: keyof DraftState, value: string) {
-    setDraft((current) => ({ ...current, [field]: value }));
+  function updateLine(key: string, patch: Partial<LineDraft>) {
+    setDraft((current) => ({
+      ...current,
+      lines: current.lines.map((line) => (line.key === key ? { ...line, ...patch } : line)),
+    }));
+  }
+
+  function addLine() {
+    setDraft((current) => {
+      const used = new Set(current.lines.map((line) => line.itemId));
+      const nextItem = items.find((item) => !used.has(item.id)) || items[0];
+      return {
+        ...current,
+        lines: [
+          ...current.lines,
+          newLine({
+            itemId: nextItem?.id || "",
+            fromLocationId: resolveOriginLocationId(nextItem),
+          }),
+        ],
+      };
+    });
   }
 
   async function sendRequest() {
-    if (!selected || !draft.fromLocationId || validationError) return;
+    if (validationError) return;
     try {
-      await inventoryService.requestMovement({
-        item_id: selected.id,
-        quantity,
-        from_location_id: draft.fromLocationId,
-        ...(draft.toLocationId
-          ? { to_location_id: draft.toLocationId }
-          : { to_location_name: draft.destination.trim() }),
-        reason: [draft.reason, draft.evidenceNote && `Evidência: ${draft.evidenceNote}`].filter(Boolean).join("\n"),
+      await inventoryService.requestWithdrawal({
+        reason: [draft.reason.trim(), draft.evidenceNote && `Evidência: ${draft.evidenceNote.trim()}`].filter(Boolean).join("\n"),
+        lines: draft.lines.map((line) => ({
+          item_id: line.itemId,
+          quantity: Number(line.quantity),
+          from_location_id: line.fromLocationId,
+        })),
       });
       localStorage.removeItem(draftKey);
-      showSuccess("Solicitação de saída registrada.");
+      localStorage.removeItem(legacyDraftKey);
+      showSuccess("Solicitação de retirada registrada.");
       navigate("/app/movements");
     } catch {
-      showError("Não foi possível solicitar a saída.");
+      showError("Não foi possível solicitar a retirada.");
     }
   }
 
@@ -199,81 +257,76 @@ export default function MovementRequestPage() {
       <Card>
         <CardContent>
           <Stack component="form" spacing={2} onSubmit={handleSubmit}>
-            <Typography variant="h5">Solicitar saída</Typography>
+            <Typography variant="h5">Solicitar retirada</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Inclua um ou mais materiais. O paiol aprova e entrega. A quantidade fica reservada até a decisão.
+            </Typography>
             {validationError && <Alert severity="warning">{validationError}</Alert>}
-            <TextField
-              select
-              label="Item"
-              value={draft.itemId}
-              onChange={(event) => {
-                const item = items.find((candidate) => candidate.id === event.target.value);
-                setDraft((current) => ({
-                  ...current,
-                  itemId: event.target.value,
-                  fromLocationId: resolveOriginLocationId(item),
-                }));
-              }}
-              required
-            >
-              {items.map((item) => (
-                <MenuItem key={item.id} value={item.id}>
-                  {item.name} ({item.stock_total} {item.unit})
-                </MenuItem>
-              ))}
-            </TextField>
-            <Autocomplete
-              options={originOptions}
-              value={selectedOrigin}
-              getOptionLabel={(option) => `${option.name} (${availableAtLocation(selected, option.id)} disponível)`}
-              isOptionEqualToValue={(option, value) => option.id === value.id}
-              onChange={(_event, value) => update("fromLocationId", value?.id || "")}
-              renderInput={(params) => <TextField {...params} label="Origem" required />}
-            />
-            <Stack direction="row" spacing={1} alignItems="center">
-              <IconButton onClick={() => update("quantity", String(Math.max(1, quantity - 1)))}>
-                <RemoveIcon />
-              </IconButton>
-              <TextField label="Quantidade" type="number" value={draft.quantity} onChange={(event) => update("quantity", event.target.value)} required />
-              <IconButton onClick={() => update("quantity", String(quantity + 1))}>
-                <AddIcon />
-              </IconButton>
-            </Stack>
-            <Autocomplete
-              freeSolo
-              options={locations}
-              value={selectedDestination}
-              inputValue={draft.destination}
-              getOptionLabel={(option) => (typeof option === "string" ? option : option.name)}
-              isOptionEqualToValue={(option, value) => option.id === value.id}
-              onChange={(_event, value) => {
-                if (typeof value === "string") {
-                  setDraft((current) => ({ ...current, destination: value, toLocationId: "" }));
-                  return;
-                }
-                if (value) {
-                  setDraft((current) => ({
-                    ...current,
-                    destination: value.name,
-                    toLocationId: value.id,
-                  }));
-                  return;
-                }
-                setDraft((current) => ({ ...current, destination: "", toLocationId: "" }));
-              }}
-              onInputChange={(_event, value, reason) => {
-                if (reason === "input" || reason === "clear") {
-                  const match = locations.find((entry) => entry.name.toLowerCase() === value.trim().toLowerCase());
-                  setDraft((current) => ({
-                    ...current,
-                    destination: value,
-                    toLocationId: match?.id || "",
-                  }));
-                }
-              }}
-              renderInput={(params) => <TextField {...params} label="Destino" required />}
-            />
-            <TextField label="Justificativa" value={draft.reason} onChange={(event) => update("reason", event.target.value)} multiline minRows={2} required />
-            <TextField label="Evidência ou foto registrada" value={draft.evidenceNote} onChange={(event) => update("evidenceNote", event.target.value)} multiline minRows={2} />
+            {draft.lines.map((line, index) => {
+              const selected = items.find((item) => item.id === line.itemId);
+              const originOptions = originLocationOptions(locations, selected);
+              const selectedOrigin = originOptions.find((entry) => entry.id === line.fromLocationId) || null;
+              const quantity = Number(line.quantity);
+              return (
+                <Stack key={line.key} spacing={1.5} sx={{ p: 1.5, border: "1px solid", borderColor: "divider", borderRadius: 1 }}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Typography fontWeight={700}>Material {index + 1}</Typography>
+                    {draft.lines.length > 1 && (
+                      <Button color="error" onClick={() => setDraft((current) => ({ ...current, lines: current.lines.filter((entry) => entry.key !== line.key) }))}>
+                        Remover
+                      </Button>
+                    )}
+                  </Stack>
+                  <TextField
+                    select
+                    label={index === 0 ? "Item" : `Item ${index + 1}`}
+                    value={line.itemId}
+                    onChange={(event) => {
+                      const item = items.find((candidate) => candidate.id === event.target.value);
+                      updateLine(line.key, {
+                        itemId: event.target.value,
+                        fromLocationId: resolveOriginLocationId(item),
+                      });
+                    }}
+                    required
+                  >
+                    {items.map((item) => (
+                      <MenuItem key={item.id} value={item.id}>
+                        {item.name} ({item.stock_total} {item.unit})
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                  <Autocomplete
+                    options={originOptions}
+                    value={selectedOrigin}
+                    getOptionLabel={(option) => `${option.name} (${availableAtLocation(selected, option.id)} disponível)`}
+                    isOptionEqualToValue={(option, value) => option.id === value.id}
+                    onChange={(_event, value) => updateLine(line.key, { fromLocationId: value?.id || "" })}
+                    renderInput={(params) => <TextField {...params} label={index === 0 ? "Origem" : `Origem ${index + 1}`} required />}
+                  />
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <IconButton aria-label={`Diminuir quantidade do material ${index + 1}`} onClick={() => updateLine(line.key, { quantity: String(Math.max(1, quantity - 1)) })}>
+                      <RemoveIcon />
+                    </IconButton>
+                    <TextField
+                      label="Quantidade"
+                      type="number"
+                      value={line.quantity}
+                      onChange={(event) => updateLine(line.key, { quantity: event.target.value })}
+                      required
+                    />
+                    <IconButton aria-label={`Aumentar quantidade do material ${index + 1}`} onClick={() => updateLine(line.key, { quantity: String(quantity + 1) })}>
+                      <AddIcon />
+                    </IconButton>
+                  </Stack>
+                </Stack>
+              );
+            })}
+            <Button startIcon={<AddIcon />} onClick={addLine} disabled={items.length === 0}>
+              Adicionar material
+            </Button>
+            <TextField label="Justificativa" value={draft.reason} onChange={(event) => setDraft((current) => ({ ...current, reason: event.target.value }))} multiline minRows={2} required />
+            <TextField label="Evidência ou observação" value={draft.evidenceNote} onChange={(event) => setDraft((current) => ({ ...current, evidenceNote: event.target.value }))} multiline minRows={2} />
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
               <Button
                 variant="outlined"
@@ -293,11 +346,18 @@ export default function MovementRequestPage() {
       </Card>
 
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} fullWidth>
-        <DialogTitle>Confirmar saída</DialogTitle>
+        <DialogTitle>Confirmar retirada</DialogTitle>
         <DialogContent>
-          <Typography>
-            Solicitar {quantity} {selected?.unit} de {selected?.name} para {draft.destination}?
-          </Typography>
+          <Stack spacing={1}>
+            {draft.lines.map((line) => {
+              const selected = items.find((item) => item.id === line.itemId);
+              return (
+                <Typography key={line.key}>
+                  {line.quantity} {selected?.unit} de {selected?.name}
+                </Typography>
+              );
+            })}
+          </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmOpen(false)}>Cancelar</Button>

@@ -46,6 +46,7 @@ export interface InventoryItem {
 export interface Movement {
   id: string;
   item_id: string;
+  movement_type?: string;
   from_location_name: string | null;
   to_location_name: string | null;
   quantity: number;
@@ -54,6 +55,66 @@ export interface Movement {
   status: string;
   reason: string;
   created_at: string;
+}
+
+export interface WithdrawalLine {
+  id: string;
+  item_id: string;
+  item_name: string;
+  item_type: string;
+  from_location_id: string;
+  from_location_name: string | null;
+  quantity: number;
+  reserved_quantity: number;
+  delivered_quantity: number;
+  returned_quantity: number;
+  written_off_quantity: number;
+  custody_quantity: number;
+  status: string;
+}
+
+export interface CustodyEvent {
+  id: string;
+  line_id: string;
+  item_id: string;
+  item_name: string;
+  event_type: "devolucao" | "baixa" | string;
+  quantity: number;
+  status: string;
+  reason: string;
+  requested_by_id: number;
+  requested_by_username: string;
+  decided_by_username: string | null;
+  decision_reason: string | null;
+  created_at: string;
+  decided_at: string | null;
+}
+
+export interface WithdrawalAuditEntry {
+  id: string;
+  occurred_at: string;
+  actor_username: string | null;
+  actor_roles: string[];
+  action: string;
+  reason: string | null;
+}
+
+export interface WithdrawalOrder {
+  id: string;
+  status: string;
+  reason: string;
+  requested_by_id: number;
+  requested_by_username: string;
+  decided_by_username: string | null;
+  decision_reason: string | null;
+  delivered_by_username: string | null;
+  delivery_reason: string | null;
+  created_at: string;
+  decided_at: string | null;
+  delivered_at: string | null;
+  lines: WithdrawalLine[];
+  events: CustodyEvent[];
+  audit_trail: WithdrawalAuditEntry[];
 }
 
 export interface AlertItem {

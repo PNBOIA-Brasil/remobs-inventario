@@ -1,9 +1,28 @@
 import Chip from "@mui/material/Chip";
 
+const labelByStatus: Record<string, string> = {
+  pending: "pendente",
+  pending_approval: "aguardando aprovação",
+  approved: "aprovado",
+  delivered: "entregue",
+  closed: "encerrado",
+  rejected: "recusado",
+  reserved: "reservado",
+  in_custody: "em posse",
+  accepted: "aceito",
+  refused: "recusado",
+};
+
 const colorByStatus: Record<string, "success" | "warning" | "error" | "default" | "info"> = {
   operacional: "success",
   aprovado: "success",
   approved: "success",
+  delivered: "success",
+  closed: "success",
+  accepted: "success",
+  in_custody: "info",
+  pending_approval: "warning",
+  reserved: "warning",
   submitted: "success",
   em_operacao: "success",
   pendente: "warning",
@@ -15,6 +34,7 @@ const colorByStatus: Record<string, "success" | "warning" | "error" | "default" 
   manutencao: "error",
   avariado: "error",
   rejected: "error",
+  refused: "error",
   discarded: "error",
   disponivel: "default",
   nao_instalado: "default",
@@ -28,7 +48,7 @@ export default function StatusChip({ status }: { status: string }) {
     <Chip
       size="small"
       color={colorByStatus[normalized] || "info"}
-      label={status.replaceAll("_", " ")}
+      label={labelByStatus[normalized] || status.replaceAll("_", " ")}
       variant={colorByStatus[normalized] === "default" ? "outlined" : "filled"}
     />
   );
