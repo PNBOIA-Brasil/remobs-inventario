@@ -117,3 +117,48 @@ def test_aprovacao_com_todas_as_linhas_zeradas_recusa_o_pedido(client: TestClien
     assert response.status_code == 200, response.text
     assert response.json()["status"] == "rejected"
     assert _stock_at(client, ADMIN, a_id, "Paiol fluxo")["reserved_quantity"] == 0
+
+
+def test_finalidade_emprestimo_exige_prazo_e_plataforma_exige_destino(client: TestClient) -> None:
+    from datetime import date, timedelta
+
+    a_id, a_loc = _item(client, quantity=3)
+    line = [{"item_id": a_id, "from_location_id": a_loc, "quantity": 1}]
+
+    sem_prazo = client.post("/inventory/withdrawals", headers=REQUESTER, json={"reason": "Empréstimo.", "lines": line, "purpose": "emprestimo"})
+    assert sem_prazo.status_code == 422
+    assert sem_prazo.json()["error"]["code"] == "due_date_required"
+
+    passado = (date.today() - timedelta(days=1)).isoformat()
+    vencido = client.post(
+        "/inventory/withdrawals",
+        headers=REQUESTER,
+        json={"reason": "Empréstimo.", "lines": line, "purpose": "emprestimo", "due_date": passado},
+    )
+    assert vencido.status_code == 422
+
+    prazo = (date.today() + timedelta(days=3)).isoformat()
+    ok = client.post(
+        "/inventory/withdrawals",
+        headers=REQUESTER,
+        json={"reason": "Empréstimo.", "lines": line, "purpose": "emprestimo", "due_date": prazo},
+    )
+    assert ok.status_code == 201, ok.text
+    assert (ok.json()["purpose"], ok.json()["due_date"]) == ("emprestimo", prazo)
+
+    sem_destino = client.post("/inventory/withdrawals", headers=REQUESTER, json={"reason": "Instalação.", "lines": line, "purpose": "plataforma"})
+    assert sem_destino.status_code == 422
+
+    platform = client.post("/platforms", headers=ADMIN, json={"name": f"Boia fluxo {uuid.uuid4()}", "platform_type": "boia"})
+    assert platform.status_code == 201, platform.text
+    destino = client.post(
+        "/inventory/withdrawals",
+        headers=REQUESTER,
+        json={"reason": "Instalação.", "lines": line, "purpose": "plataforma", "platform_id": platform.json()["id"]},
+    )
+    assert destino.status_code == 201, destino.text
+    assert destino.json()["platform_name"] == platform.json()["name"]
+    assert destino.json()["due_date"] is None
+
+    padrao = _order(client, [(a_id, a_loc, 1)])
+    assert padrao["purpose"] == "consumo"

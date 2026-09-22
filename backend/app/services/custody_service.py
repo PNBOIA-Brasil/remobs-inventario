@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +11,7 @@ from app.core.security import AuthUser
 from app.models.audit_log import AuditLog
 from app.models.custody import CustodyEvent, CustodyPosition, WithdrawalLine, WithdrawalOrder
 from app.models.inventory import InventoryItem, Location, StockMovement
+from app.models.platform import Platform
 from app.services.audit_service import log_action
 from app.services.inventory_service import ensure_stock_alert, get_balance, get_item_or_404, get_or_create_balance
 
@@ -128,6 +129,10 @@ async def serialize_orders(
             await session.execute(select(Location).where(Location.id.in_(location_ids)))
         ).scalars().all()
     } if location_ids else {}
+    platform_ids = {order.platform_id for order in orders if order.platform_id}
+    platform_names = dict(
+        (await session.execute(select(Platform.id, Platform.name).where(Platform.id.in_(platform_ids)))).all()
+    ) if platform_ids else {}
     positions = await _positions_for(session, order_ids)
     # Eventos sempre vêm: a lista precisa saber de devoluções e baixas pendentes.
     events = await _events_for(session, order_ids)
@@ -206,6 +211,10 @@ async def serialize_orders(
                 "id": order.id,
                 "status": order.status,
                 "reason": order.reason,
+                "purpose": order.purpose,
+                "due_date": order.due_date,
+                "platform_id": order.platform_id,
+                "platform_name": platform_names.get(order.platform_id),
                 "requested_by_id": order.requested_by_id,
                 "requested_by_username": order.requested_by_username,
                 "decided_by_username": order.decided_by_username,
@@ -288,7 +297,33 @@ async def _reserva_movement(session: AsyncSession, line: WithdrawalLine) -> Stoc
     )
 
 
-async def create_withdrawal(session: AsyncSession, *, user: AuthUser, reason: str, lines_payload: list) -> WithdrawalOrder:
+async def _validate_purpose(
+    session: AsyncSession, *, purpose: str, due_date: date | None, platform_id: uuid.UUID | None
+) -> tuple[date | None, uuid.UUID | None]:
+    if purpose == "emprestimo":
+        if due_date is None:
+            raise AppError("Informe a data de devolução do empréstimo.", code="due_date_required", status_code=422)
+        if due_date < _now().date():
+            raise AppError("A data de devolução não pode estar no passado.", code="due_date_past", status_code=422)
+        return due_date, None
+    if purpose == "plataforma":
+        if platform_id is None or not await session.get(Platform, platform_id):
+            raise AppError("Informe a plataforma de destino.", code="platform_required", status_code=422)
+        return None, platform_id
+    return None, None
+
+
+async def create_withdrawal(
+    session: AsyncSession,
+    *,
+    user: AuthUser,
+    reason: str,
+    lines_payload: list,
+    purpose: str = "consumo",
+    due_date: date | None = None,
+    platform_id: uuid.UUID | None = None,
+) -> WithdrawalOrder:
+    due_date, platform_id = await _validate_purpose(session, purpose=purpose, due_date=due_date, platform_id=platform_id)
     seen: set[tuple[uuid.UUID, uuid.UUID]] = set()
     prepared: list[tuple[InventoryItem, uuid.UUID, int]] = []
     for line in lines_payload:
@@ -318,6 +353,9 @@ async def create_withdrawal(session: AsyncSession, *, user: AuthUser, reason: st
         requested_by_username=user.username,
         reason=reason,
         status="pending_approval",
+        purpose=purpose,
+        due_date=due_date,
+        platform_id=platform_id,
         created_at=_now(),
     )
     session.add(order)

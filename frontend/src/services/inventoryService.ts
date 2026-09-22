@@ -11,6 +11,7 @@ import type {
   ItemHistory,
   Movement,
   WithdrawalOrder,
+  WithdrawalPurpose,
   InventoryLocation,
   Platform,
   PlatformDetail,
@@ -265,6 +266,9 @@ export const inventoryService = {
   async requestWithdrawal(payload: {
     reason: string;
     lines: Array<{ item_id: string; quantity: number; from_location_id: string }>;
+    purpose?: WithdrawalPurpose;
+    due_date?: string;
+    platform_id?: string;
   }): Promise<WithdrawalOrder> {
     const response = await inventoryApi.post<WithdrawalOrder>("/inventory/withdrawals", payload);
     return response.data;

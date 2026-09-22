@@ -2,6 +2,7 @@ import Alert from "@mui/material/Alert";
 import Badge from "@mui/material/Badge";
 import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
+import Chip from "@mui/material/Chip";
 import CardContent from "@mui/material/CardContent";
 import Stack from "@mui/material/Stack";
 import Tab from "@mui/material/Tab";
@@ -18,6 +19,7 @@ import { inventoryService } from "../services/inventoryService";
 import { useAuth } from "../state/AuthContext";
 import { useSnackbar } from "../state/SnackbarContext";
 import type { Movement, WithdrawalOrder } from "../types";
+import { isOverdue, purposeLabel } from "../withdrawalLabels";
 
 type PendingDecision =
   | { kind: "legacy"; id: string; action: "approve" | "reject" }
@@ -159,6 +161,10 @@ export default function MovementsPage() {
                 </Typography>
               ))}
               <Typography variant="body2">Solicitado por {order.requested_by_username}</Typography>
+              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                <Chip size="small" variant="outlined" label={purposeLabel(order)} />
+                {isOverdue(order) && <Chip size="small" color="error" label="Devolução vencida" />}
+              </Stack>
               <Typography variant="body2" color="text.secondary">{order.reason}</Typography>
               {hasPendingEvent(order) && <Alert severity="warning">Devolução ou baixa aguardando conferência.</Alert>}
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>

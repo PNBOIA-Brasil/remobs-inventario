@@ -5,6 +5,7 @@
 ### Alterado
 - Etapa 1: menu agrupado por intenção (Operação, Estoque, Campo, Administração), barra inferior mobile com Início, Pedidos, Itens e Menu, e Início por perfil: ações do dia, material com o usuário, pedidos em andamento e filas do paiol. Indicadores gerais ficam só para quem lê estoque.
 - Etapa 2: “Operação” virou “Pedidos”, com abas por fila (Aprovar, Entregar, Devoluções, Meus pedidos, Comigo, Todos). O paiol aprova por material: pode liberar quantidade menor ou recusar uma linha (quantidade 0), e a diferença volta ao disponível. Se todas as linhas forem zeradas, o pedido fica recusado. A entrega ignora linhas recusadas e o pedido fecha quando as demais fecham. A lista de pedidos passa a trazer devoluções e baixas pendentes.
+- Etapa 3: o pedido tem finalidade (consumo, empréstimo ou plataforma). Empréstimo exige data de devolução que não esteja no passado; plataforma exige destino. Pedidos, detalhe e Início mostram a finalidade e marcam empréstimo vencido, e o paiol vê a fila “Empréstimos vencidos”. Migração `0005_withdrawal_purpose` adiciona `purpose` (padrão `consumo`), `due_date` e `platform_id` em `withdrawal_orders`.
 
 ## [2026-09-22]
 

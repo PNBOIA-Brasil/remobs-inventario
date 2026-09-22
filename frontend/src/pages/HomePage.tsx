@@ -20,6 +20,7 @@ import { PAIOL_PERMISSIONS, REQUEST_PERMISSIONS } from "../navigation";
 import { inventoryService } from "../services/inventoryService";
 import { useAuth } from "../state/AuthContext";
 import type { DashboardSummary, WithdrawalOrder } from "../types";
+import { isOverdue, purposeLabel } from "../withdrawalLabels";
 
 const initialSummary: DashboardSummary = {
   items_registered: 0,
@@ -120,6 +121,7 @@ export default function HomePage() {
   const others = orders.filter((order) => order.requested_by_id !== user?.id);
   const toApprove = others.filter((order) => order.status === "pending_approval").length;
   const toDeliver = others.filter((order) => order.status === "approved").length;
+  const overdue = others.filter((order) => isOverdue(order)).length;
 
   const actions: Action[] = [
     ...(canRequest
@@ -179,11 +181,14 @@ export default function HomePage() {
             <Stack spacing={1}>
               <Typography variant="h6">Precisa de você</Typography>
               <Grid container spacing={1.5}>
-                <Grid size={{ xs: 12, sm: 6 }}>
+                <Grid size={{ xs: 12, sm: 4 }}>
                   <QueueCard title="Aprovar pedidos" count={toApprove} hint="Aguardando decisão do paiol" path="/app/movements?tab=aprovar" />
                 </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
+                <Grid size={{ xs: 12, sm: 4 }}>
                   <QueueCard title="Entregar no balcão" count={toDeliver} hint="Aprovados, aguardando retirada" path="/app/movements?tab=entregar" />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <QueueCard title="Empréstimos vencidos" count={overdue} hint="Prazo de devolução passou" path="/app/movements?tab=todos" />
                 </Grid>
               </Grid>
             </Stack>
@@ -200,7 +205,13 @@ export default function HomePage() {
                       {custody.map(({ order, line }) => (
                         <CardActionArea key={line.id} onClick={() => navigate(`/app/withdrawals/${order.id}`)} sx={{ borderRadius: 1, p: 0.5 }}>
                           <Stack direction="row" justifyContent="space-between" gap={1}>
-                            <Typography>{line.item_name}</Typography>
+                            <Stack>
+                              <Typography>{line.item_name}</Typography>
+                              <Typography variant="body2" color={isOverdue(order) ? "error.main" : "text.secondary"}>
+                                {purposeLabel(order)}
+                                {isOverdue(order) ? " — vencido" : ""}
+                              </Typography>
+                            </Stack>
                             <Typography color="text.secondary">{line.custody_quantity}</Typography>
                           </Stack>
                         </CardActionArea>

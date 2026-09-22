@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -15,6 +16,9 @@ class WithdrawalLineCreate(BaseModel):
 class WithdrawalCreate(BaseModel):
     reason: str = Field(min_length=3)
     lines: list[WithdrawalLineCreate] = Field(min_length=1)
+    purpose: Literal["consumo", "emprestimo", "plataforma"] = "consumo"
+    due_date: date | None = None
+    platform_id: uuid.UUID | None = None
 
 
 class DecisionReason(BaseModel):
@@ -83,6 +87,10 @@ class WithdrawalOrderRead(BaseModel):
     id: uuid.UUID
     status: str
     reason: str
+    purpose: str
+    due_date: date | None
+    platform_id: uuid.UUID | None
+    platform_name: str | None
     requested_by_id: int
     requested_by_username: str
     decided_by_username: str | None

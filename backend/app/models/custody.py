@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import Date, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import Uuid
 
@@ -22,6 +22,10 @@ class WithdrawalOrder(Base):
     requested_by_username: Mapped[str] = mapped_column(String(160), nullable=False)
     reason: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(String(64), default="pending_approval", nullable=False)
+    # consumo | emprestimo (exige due_date) | plataforma (exige platform_id)
+    purpose: Mapped[str] = mapped_column(String(32), default="consumo", server_default="consumo", nullable=False)
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
+    platform_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey(table_ref("platforms")), nullable=True)
     decided_by_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     decided_by_username: Mapped[str | None] = mapped_column(String(160), nullable=True)
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

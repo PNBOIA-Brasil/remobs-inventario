@@ -13,6 +13,8 @@ import IconButton from "@mui/material/IconButton";
 import MenuItem from "@mui/material/MenuItem";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
+import ToggleButton from "@mui/material/ToggleButton";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Typography from "@mui/material/Typography";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -20,7 +22,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import LoadingState from "../components/LoadingState";
 import { inventoryService } from "../services/inventoryService";
 import { useSnackbar } from "../state/SnackbarContext";
-import type { InventoryItem, InventoryLocation, StockBalance } from "../types";
+import type { InventoryItem, InventoryLocation, Platform, StockBalance, WithdrawalPurpose } from "../types";
 
 const draftKey = "remobs_withdrawal_request_draft";
 const legacyDraftKey = "remobs_movement_request_draft";
@@ -36,6 +38,20 @@ interface DraftState {
   lines: LineDraft[];
   reason: string;
   evidenceNote: string;
+  purpose: WithdrawalPurpose;
+  dueDate: string;
+  platformId: string;
+}
+
+const purposeOptions: Array<{ value: WithdrawalPurpose; label: string; hint: string }> = [
+  { value: "consumo", label: "Consumo", hint: "Consumíveis saem do saldo na entrega. Permanentes ficam com você até a devolução." },
+  { value: "emprestimo", label: "Empréstimo", hint: "Informe até quando o material volta ao paiol." },
+  { value: "plataforma", label: "Plataforma", hint: "Material para instalação em uma plataforma." },
+];
+
+function todayIso(): string {
+  const now = new Date();
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
 
 function lineKey(): string {
@@ -56,6 +72,9 @@ const defaultDraft: DraftState = {
   lines: [newLine({ key: "linha-1" })],
   reason: "Uso em operação de campo.",
   evidenceNote: "",
+  purpose: "consumo",
+  dueDate: "",
+  platformId: "",
 };
 
 function availableQty(balance: StockBalance): number {
@@ -104,6 +123,9 @@ function readInitialDraft(): DraftState {
           lines: parsed.lines.map((line) => newLine(line)),
           reason: parsed.reason || defaultDraft.reason,
           evidenceNote: parsed.evidenceNote || "",
+          purpose: parsed.purpose || "consumo",
+          dueDate: parsed.dueDate || "",
+          platformId: parsed.platformId || "",
         };
       }
     } catch {
@@ -122,6 +144,7 @@ function readInitialDraft(): DraftState {
         evidenceNote?: string;
       };
       return {
+        ...defaultDraft,
         lines: [newLine({ key: "linha-1", itemId: parsed.itemId, fromLocationId: parsed.fromLocationId, quantity: parsed.quantity })],
         reason: parsed.reason || defaultDraft.reason,
         evidenceNote: parsed.evidenceNote || "",
@@ -140,6 +163,7 @@ export default function MovementRequestPage() {
   const [draft, setDraft] = useState<DraftState>(readInitialDraft);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [loadingItems, setLoadingItems] = useState(true);
+  const [platforms, setPlatforms] = useState<Platform[]>([]);
   const navigate = useNavigate();
   const location = useLocation();
   const { showSuccess, showError, showInfo } = useSnackbar();
@@ -179,6 +203,15 @@ export default function MovementRequestPage() {
     localStorage.setItem(draftKey, JSON.stringify(draft));
   }, [draft]);
 
+  const needsPlatforms = draft.purpose === "plataforma";
+  useEffect(() => {
+    if (!needsPlatforms) return;
+    inventoryService
+      .listPlatforms({ activeOnly: true })
+      .then((data) => setPlatforms(data.items))
+      .catch(() => setPlatforms([]));
+  }, [needsPlatforms]);
+
   const lineErrors = useMemo(() => {
     return draft.lines.map((line) => {
       const selected = items.find((item) => item.id === line.itemId);
@@ -199,6 +232,9 @@ export default function MovementRequestPage() {
   const validationError =
     draft.lines.length < 1 ? "Inclua ao menos um material." :
     lineErrors.find(Boolean) ||
+    (draft.purpose === "emprestimo" && !draft.dueDate ? "Informe a data de devolução do empréstimo." : null) ||
+    (draft.purpose === "emprestimo" && draft.dueDate < todayIso() ? "A data de devolução não pode estar no passado." : null) ||
+    (draft.purpose === "plataforma" && !draft.platformId ? "Selecione a plataforma de destino." : null) ||
     (draft.reason.trim().length < 3 ? "Informe o motivo da retirada." : null);
 
   function updateLine(key: string, patch: Partial<LineDraft>) {
@@ -235,6 +271,9 @@ export default function MovementRequestPage() {
           quantity: Number(line.quantity),
           from_location_id: line.fromLocationId,
         })),
+        purpose: draft.purpose,
+        ...(draft.purpose === "emprestimo" ? { due_date: draft.dueDate } : {}),
+        ...(draft.purpose === "plataforma" ? { platform_id: draft.platformId } : {}),
       });
       localStorage.removeItem(draftKey);
       localStorage.removeItem(legacyDraftKey);
@@ -325,6 +364,51 @@ export default function MovementRequestPage() {
             <Button startIcon={<AddIcon />} onClick={addLine} disabled={items.length === 0}>
               Adicionar material
             </Button>
+            <Stack spacing={1}>
+              <Typography fontWeight={700} id="finalidade">Para quê?</Typography>
+              <ToggleButtonGroup
+                exclusive
+                fullWidth
+                color="primary"
+                aria-labelledby="finalidade"
+                value={draft.purpose}
+                onChange={(_event, value: WithdrawalPurpose | null) => value && setDraft((current) => ({ ...current, purpose: value }))}
+              >
+                {purposeOptions.map((option) => (
+                  <ToggleButton key={option.value} value={option.value}>
+                    {option.label}
+                  </ToggleButton>
+                ))}
+              </ToggleButtonGroup>
+              <Typography variant="body2" color="text.secondary">
+                {purposeOptions.find((option) => option.value === draft.purpose)?.hint}
+              </Typography>
+              {draft.purpose === "emprestimo" && (
+                <TextField
+                  label="Devolver até"
+                  type="date"
+                  value={draft.dueDate}
+                  onChange={(event) => setDraft((current) => ({ ...current, dueDate: event.target.value }))}
+                  slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: todayIso() } }}
+                  required
+                />
+              )}
+              {draft.purpose === "plataforma" && (
+                <TextField
+                  select
+                  label="Plataforma de destino"
+                  value={draft.platformId}
+                  onChange={(event) => setDraft((current) => ({ ...current, platformId: event.target.value }))}
+                  required
+                >
+                  {platforms.map((platform) => (
+                    <MenuItem key={platform.id} value={platform.id}>
+                      {platform.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
+            </Stack>
             <TextField label="Justificativa" value={draft.reason} onChange={(event) => setDraft((current) => ({ ...current, reason: event.target.value }))} multiline minRows={2} required />
             <TextField label="Evidência ou observação" value={draft.evidenceNote} onChange={(event) => setDraft((current) => ({ ...current, evidenceNote: event.target.value }))} multiline minRows={2} />
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>

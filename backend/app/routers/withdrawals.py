@@ -64,7 +64,15 @@ async def create_withdrawal_order(
     user: AuthUser = Depends(require_any_permission(["inventory:withdrawal:request", "inventory:movement:request"])),
     session: AsyncSession = Depends(get_async_session),
 ) -> dict:
-    order = await create_withdrawal(session, user=user, reason=payload.reason, lines_payload=payload.lines)
+    order = await create_withdrawal(
+        session,
+        user=user,
+        reason=payload.reason,
+        lines_payload=payload.lines,
+        purpose=payload.purpose,
+        due_date=payload.due_date,
+        platform_id=payload.platform_id,
+    )
     await session.commit()
     await session.refresh(order)
     return await serialize_order(session, order)

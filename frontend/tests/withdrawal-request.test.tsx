@@ -51,6 +51,10 @@ describe("solicitação de retirada com vários materiais", () => {
       id: "order-1",
       status: "pending_approval",
       reason: "Uso em operação de campo.",
+      purpose: "consumo",
+      due_date: null,
+      platform_id: null,
+      platform_name: null,
       requested_by_id: 8,
       requested_by_username: "campo",
       decided_by_username: null,
@@ -84,5 +88,31 @@ describe("solicitação de retirada com vários materiais", () => {
     expect(payload.lines).toHaveLength(2);
     expect(payload.lines.map((line) => line.item_id).sort()).toEqual(["item-bateria", "item-cabo"]);
     expect(payload.lines.every((line) => line.from_location_id === "loc-paiol" && line.quantity === 1)).toBe(true);
+  });
+  it("exige data de devolução no empréstimo e a envia no pedido", async () => {
+    vi.spyOn(inventoryService, "listItems").mockResolvedValue({ items: [item("item-cabo", "Cabo")], total: 1 });
+    vi.spyOn(inventoryService, "listLocations").mockResolvedValue({ items: locations, total: 1 });
+    const request = vi.spyOn(inventoryService, "requestWithdrawal").mockResolvedValue({} as never);
+
+    renderWithProviders(
+      <MemoryRouter initialEntries={["/app/movements/new"]}>
+        <Routes>
+          <Route path="/app/movements/new" element={<MovementRequestPage />} />
+          <Route path="/app/movements" element={<div>Fila</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("combobox", { name: /^Origem/i });
+    fireEvent.click(screen.getByRole("button", { name: "Empréstimo" }));
+    expect(screen.getByText("Informe a data de devolução do empréstimo.")).toBeTruthy();
+    expect((screen.getByRole("button", { name: /enviar solicitação/i }) as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.change(screen.getByLabelText(/Devolver até/), { target: { value: "2999-12-31" } });
+    fireEvent.click(screen.getByRole("button", { name: /enviar solicitação/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^confirmar$/i }));
+
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(1));
+    expect(request.mock.calls[0][0]).toMatchObject({ purpose: "emprestimo", due_date: "2999-12-31" });
   });
 });

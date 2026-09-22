@@ -15,7 +15,7 @@ import { inventoryService } from "../services/inventoryService";
 import { useAuth } from "../state/AuthContext";
 import { useSnackbar } from "../state/SnackbarContext";
 import type { CustodyEvent, WithdrawalLine, WithdrawalOrder } from "../types";
-import { auditActionLabel } from "../withdrawalLabels";
+import { auditActionLabel, isOverdue, purposeLabel } from "../withdrawalLabels";
 
 type Decision =
   | { kind: "approve" | "reject" | "deliver" }
@@ -106,6 +106,10 @@ export default function WithdrawalDetailPage() {
               <StatusChip status={order.status} />
             </Stack>
             <Typography>Solicitado por {order.requested_by_username}</Typography>
+            <Typography variant="body2" fontWeight={700} color={isOverdue(order) ? "error.main" : undefined}>
+              {purposeLabel(order)}
+              {isOverdue(order) ? " — devolução vencida" : ""}
+            </Typography>
             <Typography variant="body2" color="text.secondary">{order.reason}</Typography>
             {order.decided_by_username && (
               <Typography variant="body2">Decisão de {order.decided_by_username}: {order.decision_reason}</Typography>

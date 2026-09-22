@@ -99,10 +99,16 @@ export interface WithdrawalAuditEntry {
   reason: string | null;
 }
 
+export type WithdrawalPurpose = "consumo" | "emprestimo" | "plataforma";
+
 export interface WithdrawalOrder {
   id: string;
   status: string;
   reason: string;
+  purpose: WithdrawalPurpose;
+  due_date: string | null;
+  platform_id: string | null;
+  platform_name: string | null;
   requested_by_id: number;
   requested_by_username: string;
   decided_by_username: string | null;
