@@ -1,5 +1,7 @@
+import AppsIcon from "@mui/icons-material/Apps";
 import MenuIcon from "@mui/icons-material/Menu";
 import LogoutIcon from "@mui/icons-material/Logout";
+import ListSubheader from "@mui/material/ListSubheader";
 import Box from "@mui/material/Box";
 import AppBar from "@mui/material/AppBar";
 import Toolbar from "@mui/material/Toolbar";
@@ -19,7 +21,7 @@ import Stack from "@mui/material/Stack";
 import { useMemo, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
-import { getVisibleNavigation } from "../navigation";
+import { getGroupedNavigation, getVisibleNavigation } from "../navigation";
 import { useAuth } from "../state/AuthContext";
 
 const drawerWidth = 272;
@@ -31,7 +33,11 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const permissions = user?.permission_codes ?? [];
   const visibleItems = useMemo(() => getVisibleNavigation(permissions), [permissions]);
-  const bottomItems = visibleItems.filter((item) => item.bottom).slice(0, 4);
+  const groupedItems = useMemo(() => getGroupedNavigation(permissions), [permissions]);
+  const bottomItems = [
+    ...visibleItems.filter((item) => item.bottom).slice(0, 3),
+    { label: "Menu", path: "/app/menu", icon: AppsIcon },
+  ];
   const current = visibleItems.find((item) => location.pathname.startsWith(item.path));
   const currentBottom = bottomItems.findIndex((item) => location.pathname.startsWith(item.path));
 
@@ -45,26 +51,39 @@ export default function AppLayout() {
       </Box>
       <Divider />
       <List sx={{ px: 1, flex: 1 }}>
-        {visibleItems.map((item) => {
-          const Icon = item.icon;
-          return (
-            <ListItemButton
-              key={item.path}
-              component={NavLink}
-              to={item.path}
-              onClick={() => setDrawerOpen(false)}
-              sx={{
-                my: 0.5,
-                "&.active": { bgcolor: "primary.light", color: "primary.dark" },
-              }}
+        {groupedItems.map(({ group, items }) => (
+          <Box component="li" key={group} sx={{ listStyle: "none" }}>
+            <ListSubheader
+              component="div"
+              disableSticky
+              sx={{ lineHeight: "32px", mt: 1, bgcolor: "transparent", fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}
             >
-              <ListItemIcon sx={{ minWidth: 40, color: "inherit" }}>
-                <Icon />
-              </ListItemIcon>
-              <ListItemText primary={item.label} />
-            </ListItemButton>
-          );
-        })}
+              {group}
+            </ListSubheader>
+            <Box component="ul" sx={{ p: 0, m: 0 }}>
+              {items.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <ListItemButton
+                    key={item.path}
+                    component={NavLink}
+                    to={item.path}
+                    onClick={() => setDrawerOpen(false)}
+                    sx={{
+                      my: 0.25,
+                      "&.active": { bgcolor: "primary.light", color: "primary.dark" },
+                    }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 40, color: "inherit" }}>
+                      <Icon />
+                    </ListItemIcon>
+                    <ListItemText primary={item.label} />
+                  </ListItemButton>
+                );
+              })}
+            </Box>
+          </Box>
+        ))}
       </List>
       <Box sx={{ p: 2 }}>
         <Typography variant="body2" fontWeight={700}>

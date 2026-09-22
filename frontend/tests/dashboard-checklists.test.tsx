@@ -5,9 +5,18 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import HomePage from "../src/pages/HomePage";
 import { inventoryService } from "../src/services/inventoryService";
 
+vi.mock("../src/state/AuthContext", () => ({
+  useAuth: () => ({
+    user: { id: 1, username: "admin", permission_codes: ["*"] },
+    hasPermission: () => true,
+    hasAnyPermission: () => true,
+  }),
+}));
+
 vi.mock("../src/services/inventoryService", () => ({
   inventoryService: {
     getDashboardSummary: vi.fn(),
+    listWithdrawals: vi.fn(),
     listItems: vi.fn(),
     listMovements: vi.fn(),
     listAlerts: vi.fn(),
@@ -45,6 +54,7 @@ describe("dashboard operacional", () => {
       critical_alerts: [],
       critical_stock_items: [],
     });
+    vi.mocked(inventoryService.listWithdrawals).mockResolvedValue({ items: [], total: 0 });
     vi.mocked(inventoryService.listItems).mockResolvedValue({ items: [], total: 0 });
     vi.mocked(inventoryService.listMovements).mockResolvedValue({ items: [], total: 0 });
     vi.mocked(inventoryService.listAlerts).mockResolvedValue({ items: [], total: 0 });

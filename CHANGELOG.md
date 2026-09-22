@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [2026-09-22] — Redesenho por fluxos
+
+### Alterado
+- Etapa 1: menu agrupado por intenção (Operação, Estoque, Campo, Administração), barra inferior mobile com Início, Pedidos, Itens e Menu, e Início por perfil: ações do dia, material com o usuário, pedidos em andamento e filas do paiol. Indicadores gerais ficam só para quem lê estoque.
+
 ## [2026-09-22]
 
 ### Adicionado
