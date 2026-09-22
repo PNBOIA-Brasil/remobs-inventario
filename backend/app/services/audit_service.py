@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi.encoders import jsonable_encoder
@@ -36,6 +37,7 @@ async def log_action(
                 diff[key] = {"before": before_value, "after": after_value}
 
     entry = AuditLog(
+        occurred_at=datetime.now(timezone.utc),
         actor_user_id=actor.id if actor else None,
         actor_username=actor.username if actor else None,
         actor_roles=actor.roles if actor else [],

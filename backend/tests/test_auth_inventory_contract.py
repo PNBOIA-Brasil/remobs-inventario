@@ -1106,3 +1106,286 @@ def test_locations_crud_and_autocomplete_permissions(client: TestClient) -> None
     including_inactive = client.get("/locations", headers=headers, params={"active_only": False})
     assert including_inactive.status_code == 200
     assert any(item["id"] == location_id and item["is_active"] is False for item in including_inactive.json()["items"])
+
+
+def _bearer(
+    permissions: list[str],
+    *,
+    user_id: int,
+    username: str,
+    roles: list[str],
+) -> dict[str, str]:
+    return {
+        "Authorization": f"Bearer {token_for(user_id=user_id, username=username, permissions=permissions, roles=roles)}",
+    }
+
+
+def _stock_at(client: TestClient, headers: dict[str, str], item_id: str, location_name: str) -> dict:
+    detail = client.get(f"/inventory/items/{item_id}", headers=headers)
+    assert detail.status_code == 200, detail.text
+    return next(row for row in detail.json()["balances"] if row["location_name"] == location_name)
+
+
+def test_withdrawal_custody_flow(client: TestClient) -> None:
+    admin_headers = auth_headers(["*"], user_id=1, username="admin")
+    requester = _bearer(
+        ["inventory:withdrawal:request", "inventory:item:read"],
+        user_id=8,
+        username="campo",
+        roles=["operacao"],
+    )
+    requester_star = _bearer(["*"], user_id=8, username="campo", roles=["operacao"])
+    paiol = _bearer(
+        [
+            "inventory:item:read",
+            "inventory:custody:read",
+            "inventory:withdrawal:approve",
+            "inventory:withdrawal:deliver",
+            "inventory:return:decide",
+            "inventory:writeoff:decide",
+        ],
+        user_id=3,
+        username="paiol",
+        roles=["paiol"],
+    )
+    other = _bearer(
+        ["inventory:withdrawal:request"],
+        user_id=9,
+        username="outro",
+        roles=["operacao"],
+    )
+
+    consumable = client.post(
+        "/inventory/items",
+        headers=admin_headers,
+        json={
+            "item_type": "consumable",
+            "name": f"Cabo paiol {uuid.uuid4()}",
+            "category_name": "Cabos",
+            "location_name": "Estoque",
+            "unit": "un",
+            "initial_quantity": 5,
+            "reason": "Carga inicial.",
+        },
+    )
+    assert consumable.status_code == 201, consumable.text
+    consumable_id = consumable.json()["id"]
+    consumable_location = consumable.json()["balances"][0]["location_id"]
+
+    permanent = client.post(
+        "/inventory/items",
+        headers=admin_headers,
+        json={
+            "item_type": "permanent_component",
+            "name": f"ADCP paiol {uuid.uuid4()}",
+            "category_name": "Sensor",
+            "location_name": "Estoque",
+            "unit": "un",
+            "initial_quantity": 1,
+            "reason": "Carga inicial.",
+        },
+    )
+    assert permanent.status_code == 201, permanent.text
+    permanent_id = permanent.json()["id"]
+    permanent_location = permanent.json()["balances"][0]["location_id"]
+
+    created = client.post(
+        "/inventory/withdrawals",
+        headers=requester,
+        json={
+            "reason": "Saída para manutenção de campo.",
+            "lines": [
+                {"item_id": consumable_id, "quantity": 2, "from_location_id": consumable_location},
+                {"item_id": permanent_id, "quantity": 1, "from_location_id": permanent_location},
+            ],
+        },
+    )
+    assert created.status_code == 201, created.text
+    order = created.json()
+    order_id = order["id"]
+    assert order["status"] == "pending_approval"
+    assert len(order["lines"]) == 2
+    assert _stock_at(client, admin_headers, consumable_id, "Estoque") == {
+        **_stock_at(client, admin_headers, consumable_id, "Estoque"),
+        "quantity": 5,
+        "reserved_quantity": 2,
+    }
+    assert _stock_at(client, admin_headers, permanent_id, "Estoque")["reserved_quantity"] == 1
+    assert _stock_at(client, admin_headers, permanent_id, "Estoque")["quantity"] == 1
+
+    self_approve = client.post(
+        f"/inventory/withdrawals/{order_id}/approve",
+        headers=requester_star,
+        json={"reason": "Tentativa do próprio solicitante."},
+    )
+    assert self_approve.status_code == 403
+    assert self_approve.json()["error"]["code"] == "self_decision_denied"
+
+    early_deliver = client.post(
+        f"/inventory/withdrawals/{order_id}/deliver",
+        headers=paiol,
+        json={"reason": "Entrega antes da aprovação."},
+    )
+    assert early_deliver.status_code == 409
+    assert early_deliver.json()["error"]["code"] == "withdrawal_not_approved"
+
+    extra = client.post(
+        "/inventory/withdrawals",
+        headers=requester,
+        json={
+            "reason": "Pedido extra para recusa.",
+            "lines": [{"item_id": consumable_id, "quantity": 1, "from_location_id": consumable_location}],
+        },
+    )
+    assert extra.status_code == 201, extra.text
+    assert _stock_at(client, admin_headers, consumable_id, "Estoque")["reserved_quantity"] == 3
+    rejected = client.post(
+        f"/inventory/withdrawals/{extra.json()['id']}/reject",
+        headers=paiol,
+        json={"reason": "Sem necessidade operacional."},
+    )
+    assert rejected.status_code == 200, rejected.text
+    assert rejected.json()["status"] == "rejected"
+    assert _stock_at(client, admin_headers, consumable_id, "Estoque")["quantity"] == 5
+    assert _stock_at(client, admin_headers, consumable_id, "Estoque")["reserved_quantity"] == 2
+    assert any(entry["action"] == "withdrawal_rejected" and "paiol" in entry["actor_roles"] for entry in rejected.json()["audit_trail"])
+
+    overflow = client.post(
+        "/inventory/withdrawals",
+        headers=requester,
+        json={
+            "reason": "Pedido acima do disponível.",
+            "lines": [{"item_id": consumable_id, "quantity": 4, "from_location_id": consumable_location}],
+        },
+    )
+    assert overflow.status_code == 409
+    assert overflow.json()["error"]["code"] == "stock_insufficient"
+
+    approved = client.post(
+        f"/inventory/withdrawals/{order_id}/approve",
+        headers=paiol,
+        json={"reason": "Retirada autorizada pelo paiol."},
+    )
+    assert approved.status_code == 200, approved.text
+    assert approved.json()["status"] == "approved"
+    assert _stock_at(client, admin_headers, consumable_id, "Estoque")["quantity"] == 5
+    assert _stock_at(client, admin_headers, consumable_id, "Estoque")["reserved_quantity"] == 2
+
+    delivered = client.post(
+        f"/inventory/withdrawals/{order_id}/deliver",
+        headers=paiol,
+        json={"reason": "Material entregue em mãos."},
+    )
+    assert delivered.status_code == 200, delivered.text
+    assert delivered.json()["status"] == "delivered"
+    consumable_line = next(line for line in delivered.json()["lines"] if line["item_id"] == consumable_id)
+    permanent_line = next(line for line in delivered.json()["lines"] if line["item_id"] == permanent_id)
+    assert consumable_line["custody_quantity"] == 2
+    assert permanent_line["custody_quantity"] == 1
+    assert _stock_at(client, admin_headers, consumable_id, "Estoque")["quantity"] == 3
+    assert _stock_at(client, admin_headers, consumable_id, "Estoque")["reserved_quantity"] == 0
+    assert _stock_at(client, admin_headers, permanent_id, "Estoque")["quantity"] == 0
+
+    hidden = client.get("/inventory/withdrawals", headers=other)
+    assert hidden.status_code == 200
+    assert all(item["id"] != order_id for item in hidden.json()["items"])
+    denied = client.get(f"/inventory/withdrawals/{order_id}", headers=other)
+    assert denied.status_code == 404
+
+    partial_return = client.post(
+        f"/inventory/withdrawals/{order_id}/lines/{consumable_line['id']}/return",
+        headers=requester,
+        json={"quantity": 1, "reason": "Sobra de cabo."},
+    )
+    assert partial_return.status_code == 201 or partial_return.status_code == 200, partial_return.text
+    return_event = next(event for event in partial_return.json()["events"] if event["status"] == "pending")
+    accepted_return = client.post(
+        f"/inventory/custody-events/{return_event['id']}/accept",
+        headers=paiol,
+        json={"reason": "Devolução conferida."},
+    )
+    assert accepted_return.status_code == 200, accepted_return.text
+    assert _stock_at(client, admin_headers, consumable_id, "Estoque")["quantity"] == 4
+    assert next(line for line in accepted_return.json()["lines"] if line["item_id"] == consumable_id)["custody_quantity"] == 1
+
+    writeoff = client.post(
+        f"/inventory/withdrawals/{order_id}/lines/{consumable_line['id']}/writeoff",
+        headers=requester,
+        json={"quantity": 1, "reason": "Cabo consumido na manutenção."},
+    )
+    assert writeoff.status_code == 200, writeoff.text
+    writeoff_event = next(event for event in writeoff.json()["events"] if event["event_type"] == "baixa" and event["status"] == "pending")
+    accepted_writeoff = client.post(
+        f"/inventory/custody-events/{writeoff_event['id']}/accept",
+        headers=paiol,
+        json={"reason": "Baixa de consumo confirmada."},
+    )
+    assert accepted_writeoff.status_code == 200, accepted_writeoff.text
+    assert _stock_at(client, admin_headers, consumable_id, "Estoque")["quantity"] == 4
+    assert next(line for line in accepted_writeoff.json()["lines"] if line["item_id"] == consumable_id)["custody_quantity"] == 0
+
+    permanent_writeoff = client.post(
+        f"/inventory/withdrawals/{order_id}/lines/{permanent_line['id']}/writeoff",
+        headers=requester,
+        json={"quantity": 1, "reason": "Tentar baixar permanente."},
+    )
+    assert permanent_writeoff.status_code == 409
+    assert permanent_writeoff.json()["error"]["code"] == "writeoff_not_consumable"
+
+    refused_return = client.post(
+        f"/inventory/withdrawals/{order_id}/lines/{permanent_line['id']}/return",
+        headers=requester,
+        json={"quantity": 1, "reason": "Devolução do ADCP."},
+    )
+    assert refused_return.status_code == 200, refused_return.text
+    refused_event = next(event for event in refused_return.json()["events"] if event["status"] == "pending")
+    refusal = client.post(
+        f"/inventory/custody-events/{refused_event['id']}/refuse",
+        headers=paiol,
+        json={"reason": "Equipamento ainda em uso."},
+    )
+    assert refusal.status_code == 200, refusal.text
+    assert _stock_at(client, admin_headers, permanent_id, "Estoque")["quantity"] == 0
+    assert next(line for line in refusal.json()["lines"] if line["item_id"] == permanent_id)["custody_quantity"] == 1
+    assert any(entry["action"] == "return_refused" for entry in refusal.json()["audit_trail"])
+
+    final_return = client.post(
+        f"/inventory/withdrawals/{order_id}/lines/{permanent_line['id']}/return",
+        headers=requester,
+        json={"quantity": 1, "reason": "Devolução definitiva do ADCP."},
+    )
+    assert final_return.status_code == 200, final_return.text
+    final_event = next(event for event in final_return.json()["events"] if event["status"] == "pending")
+    closed = client.post(
+        f"/inventory/custody-events/{final_event['id']}/accept",
+        headers=paiol,
+        json={"reason": "ADCP voltou ao paiol."},
+    )
+    assert closed.status_code == 200, closed.text
+    assert closed.json()["status"] == "closed"
+    assert _stock_at(client, admin_headers, permanent_id, "Estoque")["quantity"] == 1
+    assert next(line for line in closed.json()["lines"] if line["item_id"] == permanent_id)["custody_quantity"] == 0
+
+    actions = [entry["action"] for entry in closed.json()["audit_trail"]]
+    for action in (
+        "withdrawal_requested",
+        "withdrawal_approved",
+        "withdrawal_delivered",
+        "return_requested",
+        "return_accepted",
+        "writeoff_requested",
+        "writeoff_accepted",
+        "return_refused",
+    ):
+        assert action in actions
+    approved_entry = next(entry for entry in closed.json()["audit_trail"] if entry["action"] == "withdrawal_approved")
+    assert approved_entry["actor_username"] == "paiol"
+    assert "paiol" in approved_entry["actor_roles"]
+    assert approved_entry["reason"] == "Retirada autorizada pelo paiol."
+
+    history = client.get(f"/inventory/items/{consumable_id}/history", headers=admin_headers)
+    assert history.status_code == 200
+    history_actions = {entry["action"] for entry in history.json()["audit_logs"]}
+    assert "withdrawal_requested" in history_actions
+    movement_types = {entry["movement_type"] for entry in history.json()["movements"]}
+    assert {"reserva", "entrega", "devolucao", "baixa"} <= movement_types

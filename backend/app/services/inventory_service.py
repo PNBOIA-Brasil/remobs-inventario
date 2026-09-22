@@ -5,12 +5,13 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AppError
 from app.models.alert import Alert
 from app.models.audit_log import AuditLog
+from app.models.custody import WithdrawalLine
 from app.models.inventory import InventoryCategory, InventoryItem, Location, StockBalance, StockMovement
 
 
@@ -266,12 +267,16 @@ async def ensure_stock_alert(session: AsyncSession, item: InventoryItem) -> None
 
 
 async def audit_logs_for_item(session: AsyncSession, item_id: uuid.UUID) -> list[dict[str, Any]]:
-    rows = (
-        await session.execute(
-            select(AuditLog)
-            .where(AuditLog.entity_type == "inventory_item", AuditLog.entity_id == str(item_id))
-            .order_by(AuditLog.occurred_at.desc())
+    order_ids = (
+        await session.execute(select(WithdrawalLine.order_id).where(WithdrawalLine.item_id == item_id))
+    ).scalars().all()
+    filters = [(AuditLog.entity_type == "inventory_item") & (AuditLog.entity_id == str(item_id))]
+    if order_ids:
+        filters.append(
+            (AuditLog.entity_type == "withdrawal_order") & (AuditLog.entity_id.in_([str(order_id) for order_id in order_ids]))
         )
+    rows = (
+        await session.execute(select(AuditLog).where(or_(*filters)).order_by(AuditLog.occurred_at.desc()))
     ).scalars().all()
     return [
         {
