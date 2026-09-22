@@ -35,6 +35,7 @@ export default function WithdrawalDetailPage() {
   const [loading, setLoading] = useState(true);
   const [decision, setDecision] = useState<Decision | null>(null);
   const [quantities, setQuantities] = useState<Record<string, string>>({});
+  const [approveQty, setApproveQty] = useState<Record<string, string>>({});
   const navigate = useNavigate();
   const { hasPermission, user } = useAuth();
   const { showSuccess, showError } = useSnackbar();
@@ -59,7 +60,11 @@ export default function WithdrawalDetailPage() {
   async function confirm(reason: string) {
     if (!order || !decision) return;
     try {
-      if (decision.kind === "approve") await inventoryService.approveWithdrawal(order.id, reason);
+      if (decision.kind === "approve") {
+        const lines = order.lines.map((line) => ({ line_id: line.id, quantity: Number(approveQty[line.id] ?? line.quantity) }));
+        const partial = lines.some((line, index) => line.quantity !== order.lines[index].quantity);
+        await inventoryService.approveWithdrawal(order.id, reason, partial ? lines : undefined);
+      }
       if (decision.kind === "reject") await inventoryService.rejectWithdrawal(order.id, reason);
       if (decision.kind === "deliver") await inventoryService.deliverWithdrawal(order.id, reason);
       if (decision.kind === "accept") await inventoryService.acceptCustodyEvent(decision.eventId, reason);
@@ -92,7 +97,7 @@ export default function WithdrawalDetailPage() {
 
   return (
     <Stack spacing={2}>
-      <Button onClick={() => navigate("/app/movements")} sx={{ alignSelf: "flex-start" }}>Operação</Button>
+      <Button onClick={() => navigate("/app/movements")} sx={{ alignSelf: "flex-start" }}>Pedidos</Button>
       <Card>
         <CardContent>
           <Stack spacing={1}>
@@ -136,6 +141,16 @@ export default function WithdrawalDetailPage() {
                   Pedido {line.quantity} • em posse {line.custody_quantity} • devolvido {line.returned_quantity} • baixado {line.written_off_quantity}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">Origem: {line.from_location_name}</Typography>
+                {order.status === "pending_approval" && hasPermission("inventory:withdrawal:approve") && canDecide && (
+                  <TextField
+                    label={`Aprovar de ${line.item_name}`}
+                    helperText={`Pedido ${line.quantity}. Use 0 para recusar este material.`}
+                    type="number"
+                    value={approveQty[line.id] ?? String(line.quantity)}
+                    onChange={(event) => setApproveQty((current) => ({ ...current, [line.id]: event.target.value }))}
+                    slotProps={{ htmlInput: { min: 0, max: line.quantity } }}
+                  />
+                )}
                 {order.status === "delivered" && isRequester && available > 0 && (
                   <Stack spacing={1}>
                     <TextField

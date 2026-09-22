@@ -21,6 +21,17 @@ class DecisionReason(BaseModel):
     reason: str = Field(min_length=3)
 
 
+class ApprovalLine(BaseModel):
+    line_id: uuid.UUID
+    quantity: int = Field(ge=0)
+
+
+class WithdrawalApproval(DecisionReason):
+    """Sem `lines`, aprova tudo. Linha omitida mantém a quantidade pedida; quantidade 0 recusa a linha."""
+
+    lines: list[ApprovalLine] | None = None
+
+
 class CustodyRequestCreate(BaseModel):
     quantity: int = Field(gt=0)
     reason: str = Field(min_length=3)

@@ -128,7 +128,7 @@ export default function HomePage() {
           {
             label: "Devolver",
             hint: custody.length > 0 ? `${custody.length} material(is) com você` : "Nada com você agora",
-            path: "/app/movements",
+            path: "/app/movements?tab=comigo",
             icon: AssignmentReturnIcon,
           },
         ]
@@ -180,10 +180,10 @@ export default function HomePage() {
               <Typography variant="h6">Precisa de você</Typography>
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <QueueCard title="Aprovar pedidos" count={toApprove} hint="Aguardando decisão do paiol" path="/app/movements" />
+                  <QueueCard title="Aprovar pedidos" count={toApprove} hint="Aguardando decisão do paiol" path="/app/movements?tab=aprovar" />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <QueueCard title="Entregar no balcão" count={toDeliver} hint="Aprovados, aguardando retirada" path="/app/movements" />
+                  <QueueCard title="Entregar no balcão" count={toDeliver} hint="Aprovados, aguardando retirada" path="/app/movements?tab=entregar" />
                 </Grid>
               </Grid>
             </Stack>

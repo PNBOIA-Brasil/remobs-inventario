@@ -129,7 +129,8 @@ async def serialize_orders(
         ).scalars().all()
     } if location_ids else {}
     positions = await _positions_for(session, order_ids)
-    events = await _events_for(session, order_ids) if include_details else []
+    # Eventos sempre vêm: a lista precisa saber de devoluções e baixas pendentes.
+    events = await _events_for(session, order_ids)
     audits: list[AuditLog] = []
     if include_details:
         audits = list(
@@ -377,21 +378,66 @@ async def get_withdrawal(session: AsyncSession, *, user: AuthUser, order_id: uui
     return order
 
 
-async def approve_withdrawal(session: AsyncSession, *, user: AuthUser, order_id: uuid.UUID, reason: str) -> WithdrawalOrder:
+async def _release_line(session: AsyncSession, line: WithdrawalLine, *, user: AuthUser, reason: str) -> None:
+    """Recusa a linha: devolve a reserva ao disponível e fecha o movimento de reserva."""
+    balance = await get_balance(session, item_id=line.item_id, location_id=line.from_location_id)
+    if balance:
+        balance.reserved_quantity = max(0, balance.reserved_quantity - line.reserved_quantity)
+    line.reserved_quantity = 0
+    line.status = "rejected"
+    reserva = await _reserva_movement(session, line)
+    if reserva:
+        reserva.status = "rejected"
+        reserva.approved_by_id = user.id
+        reserva.approved_by_username = user.username
+        reserva.approved_at = _now()
+        reserva.decision_reason = reason
+
+
+async def approve_withdrawal(
+    session: AsyncSession,
+    *,
+    user: AuthUser,
+    order_id: uuid.UUID,
+    reason: str,
+    line_quantities: dict[uuid.UUID, int] | None = None,
+) -> WithdrawalOrder:
+    """Aprova por linha. Quantidade menor que a pedida libera a diferença; 0 recusa a linha.
+
+    Se todas as linhas forem recusadas, o pedido inteiro fica recusado.
+    """
     order = await _order_or_404(session, order_id)
     _deny_self(user, order.requested_by_id)
     if order.status != "pending_approval":
         raise AppError("Pedido não está pendente de aprovação.", code="withdrawal_not_pending", status_code=409)
     before = await serialize_order(session, order, include_details=False)
     lines = await _lines_for(session, [order.id])
+    quantities = line_quantities or {}
+    unknown = set(quantities) - {line.id for line in lines}
+    if unknown:
+        raise AppError("Linha do pedido não encontrada.", code="line_not_found", status_code=404)
     for line in lines:
+        approved = quantities.get(line.id, line.quantity)
+        if approved > line.quantity:
+            raise AppError("Quantidade aprovada maior que a pedida.", code="approval_quantity_exceeded", status_code=422)
+        if approved == 0:
+            await _release_line(session, line, user=user, reason=reason)
+            continue
         balance = await get_balance(session, item_id=line.item_id, location_id=line.from_location_id)
-        if not balance or balance.reserved_quantity < line.reserved_quantity or balance.quantity < line.quantity:
+        if not balance or balance.reserved_quantity < line.reserved_quantity or balance.quantity < approved:
             item = await get_item_or_404(session, line.item_id)
             raise AppError(f"Estoque insuficiente de {item.name}.", code="stock_insufficient", status_code=409)
+        if approved < line.quantity:
+            balance.reserved_quantity -= line.reserved_quantity - approved
+            line.quantity = approved
+            line.reserved_quantity = approved
+            reserva = await _reserva_movement(session, line)
+            if reserva:
+                reserva.quantity = approved
         line.status = "reserved"
     now = _now()
-    order.status = "approved"
+    all_rejected = all(line.status == "rejected" for line in lines)
+    order.status = "rejected" if all_rejected else "approved"
     order.decided_by_id = user.id
     order.decided_by_username = user.username
     order.decided_at = now
@@ -399,7 +445,7 @@ async def approve_withdrawal(session: AsyncSession, *, user: AuthUser, order_id:
     await log_action(
         session,
         actor=user,
-        action="withdrawal_approved",
+        action="withdrawal_rejected" if all_rejected else "withdrawal_approved",
         entity_type="withdrawal_order",
         entity_id=str(order.id),
         entity_label_snapshot=order.requested_by_username,
@@ -418,18 +464,7 @@ async def reject_withdrawal(session: AsyncSession, *, user: AuthUser, order_id: 
     before = await serialize_order(session, order, include_details=False)
     lines = await _lines_for(session, [order.id])
     for line in lines:
-        balance = await get_balance(session, item_id=line.item_id, location_id=line.from_location_id)
-        if balance:
-            balance.reserved_quantity = max(0, balance.reserved_quantity - line.reserved_quantity)
-        line.reserved_quantity = 0
-        line.status = "rejected"
-        reserva = await _reserva_movement(session, line)
-        if reserva:
-            reserva.status = "rejected"
-            reserva.approved_by_id = user.id
-            reserva.approved_by_username = user.username
-            reserva.approved_at = _now()
-            reserva.decision_reason = reason
+        await _release_line(session, line, user=user, reason=reason)
     order.status = "rejected"
     order.decided_by_id = user.id
     order.decided_by_username = user.username
@@ -458,6 +493,8 @@ async def deliver_withdrawal(session: AsyncSession, *, user: AuthUser, order_id:
     lines = await _lines_for(session, [order.id])
     now = _now()
     for line in lines:
+        if line.status == "rejected":
+            continue
         balance = await get_balance(session, item_id=line.item_id, location_id=line.from_location_id)
         item = await get_item_or_404(session, line.item_id)
         if not balance or balance.quantity < line.quantity or balance.reserved_quantity < line.quantity:
@@ -636,7 +673,7 @@ async def _refresh_order_closure(session: AsyncSession, order: WithdrawalOrder) 
     if order.status != "delivered":
         return
     lines = await _lines_for(session, [order.id])
-    if lines and all(line.status == "closed" for line in lines):
+    if lines and all(line.status in ("closed", "rejected") for line in lines):
         order.status = "closed"
 
 

@@ -11,6 +11,7 @@ from app.core.security import AuthUser
 from app.schemas.custody import (
     CustodyRequestCreate,
     DecisionReason,
+    WithdrawalApproval,
     WithdrawalCreate,
     WithdrawalListRead,
     WithdrawalOrderRead,
@@ -82,11 +83,17 @@ async def read_withdrawal_order(
 @router.post("/withdrawals/{order_id}/approve", response_model=WithdrawalOrderRead)
 async def approve_withdrawal_order(
     order_id: uuid.UUID,
-    payload: DecisionReason,
+    payload: WithdrawalApproval,
     user: AuthUser = Depends(require_permissions(["inventory:withdrawal:approve"])),
     session: AsyncSession = Depends(get_async_session),
 ) -> dict:
-    order = await approve_withdrawal(session, user=user, order_id=order_id, reason=payload.reason)
+    order = await approve_withdrawal(
+        session,
+        user=user,
+        order_id=order_id,
+        reason=payload.reason,
+        line_quantities={line.line_id: line.quantity for line in payload.lines} if payload.lines else None,
+    )
     await session.commit()
     await session.refresh(order)
     return await serialize_order(session, order)

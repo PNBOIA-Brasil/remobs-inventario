@@ -270,8 +270,9 @@ export const inventoryService = {
     return response.data;
   },
 
-  async approveWithdrawal(id: string, reason: string): Promise<WithdrawalOrder> {
-    const response = await inventoryApi.post<WithdrawalOrder>(`/inventory/withdrawals/${id}/approve`, { reason });
+  /** Sem `lines`, aprova tudo como pedido. Com `lines`, quantidade 0 recusa o material. */
+  async approveWithdrawal(id: string, reason: string, lines?: Array<{ line_id: string; quantity: number }>): Promise<WithdrawalOrder> {
+    const response = await inventoryApi.post<WithdrawalOrder>(`/inventory/withdrawals/${id}/approve`, lines ? { reason, lines } : { reason });
     return response.data;
   },
 
