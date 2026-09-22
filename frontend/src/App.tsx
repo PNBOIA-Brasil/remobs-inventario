@@ -4,6 +4,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import AppLayout from "./layouts/AppLayout";
+import AcquisitionsPage from "./pages/AcquisitionsPage";
 import AlertsPage from "./pages/AlertsPage";
 import ChecklistDetailPage from "./pages/ChecklistDetailPage";
 import ChecklistFormPage from "./pages/ChecklistFormPage";
@@ -56,6 +57,7 @@ export default function App() {
           <Route path="withdrawals/:id" element={<WithdrawalDetailPage />} />
           <Route path="receipts/new" element={<ReceiptPage />} />
           <Route path="alerts" element={<AlertsPage />} />
+          <Route path="acquisitions" element={<AcquisitionsPage />} />
           <Route path="locations" element={<LocationsPage />} />
           <Route path="locations/new" element={<LocationFormPage />} />
           <Route path="locations/:id/edit" element={<LocationFormPage />} />

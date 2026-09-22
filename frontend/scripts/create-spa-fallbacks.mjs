@@ -16,6 +16,7 @@ const routes = [
   "app/withdrawals/new",
   "app/receipts/new",
   "app/alerts",
+  "app/acquisitions",
   "app/locations",
   "app/locations/new",
   "app/platforms",

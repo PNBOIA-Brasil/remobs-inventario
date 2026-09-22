@@ -1,4 +1,5 @@
 import AssignmentTurnedInIcon from "@mui/icons-material/AssignmentTurnedIn";
+import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import ChecklistIcon from "@mui/icons-material/FactCheck";
 import HubIcon from "@mui/icons-material/Hub";
@@ -32,6 +33,7 @@ export const navigationItems: NavigationItem[] = [
   { label: "Receber material", path: "/app/receipts/new", icon: MoveToInboxIcon, permissions: RECEIPT_PERMISSIONS, group: "Operação", bottom: false },
   { label: "Itens e saldos", path: "/app/inventory", icon: InventoryIcon, permissions: ["inventory:item:read"], group: "Estoque", bottom: true },
   { label: "Alertas", path: "/app/alerts", icon: WarningAmberIcon, permissions: ["inventory:item:read"], group: "Estoque", bottom: false },
+  { label: "Aquisições", path: "/app/acquisitions", icon: ShoppingCartIcon, permissions: ["inventory:item:read"], group: "Estoque", bottom: false },
   { label: "Plataformas", path: "/app/platforms", icon: HubIcon, permissions: ["platform:read"], group: "Campo", bottom: false },
   { label: "Sensores", path: "/app/sensors", icon: SensorsIcon, permissions: ["sensor:read"], group: "Campo", bottom: false },
   { label: "Checklists", path: "/app/checklists", icon: ChecklistIcon, permissions: ["checklist:read", "checklist:submit"], group: "Campo", bottom: false },

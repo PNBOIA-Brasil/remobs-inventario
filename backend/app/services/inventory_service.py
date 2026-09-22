@@ -9,6 +9,7 @@ from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AppError
+from app.models.acquisition import OPEN_ACQUISITION_STATUSES, AcquisitionNeed
 from app.models.alert import Alert
 from app.models.audit_log import AuditLog
 from app.models.custody import WithdrawalLine
@@ -264,6 +265,32 @@ async def ensure_stock_alert(session: AsyncSession, item: InventoryItem) -> None
     elif int(total or 0) >= item.minimum_stock_national and open_alert:
         open_alert.status = "resolved"
         open_alert.resolved_at = datetime.now(timezone.utc)
+
+    if int(total or 0) < item.minimum_stock_national:
+        await suggest_acquisition(session, item, int(total or 0))
+
+
+async def suggest_acquisition(session: AsyncSession, item: InventoryItem, total: int) -> AcquisitionNeed | None:
+    """Abre necessidade sugerida até o estoque ideal (ou o mínimo), se o item ainda não tiver uma aberta."""
+    open_need = await session.scalar(
+        select(AcquisitionNeed.id).where(
+            AcquisitionNeed.item_id == item.id,
+            AcquisitionNeed.status.in_(OPEN_ACQUISITION_STATUSES),
+        )
+    )
+    if open_need:
+        return None
+    target = max(item.ideal_stock, item.minimum_stock_national)
+    need = AcquisitionNeed(
+        item_id=item.id,
+        quantity=target - total,
+        status="sugerida",
+        priority="alta" if total == 0 else "media",
+        origin="automatica",
+        reason=f"Saldo {total} abaixo do mínimo {item.minimum_stock_national}.",
+    )
+    session.add(need)
+    return need
 
 
 async def audit_logs_for_item(session: AsyncSession, item_id: uuid.UUID) -> list[dict[str, Any]]:

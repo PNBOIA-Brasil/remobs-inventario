@@ -8,6 +8,7 @@ from app.core.errors import AppError
 from app.core.security import AuthUser
 from app.models.inventory import Location, StockMovement
 from app.schemas.receipt import ReceiptCreate
+from app.services.acquisition_service import allocate_receipt
 from app.services.audit_service import log_action
 from app.services.inventory_service import ensure_stock_alert, get_item_or_404, get_or_create_balance
 
@@ -58,6 +59,8 @@ async def register_receipt(session: AsyncSession, *, user: AuthUser, payload: Re
         session.add(movement)
         item.row_version += 1
         await session.flush()
+        # Baixa a necessidade antes do alerta: se ainda faltar, o alerta reabre uma sugestão nova.
+        fulfilled = await allocate_receipt(session, item_id=item.id, quantity=line.quantity)
         await ensure_stock_alert(session, item)
         await log_action(
             session,
@@ -69,7 +72,12 @@ async def register_receipt(session: AsyncSession, *, user: AuthUser, payload: Re
             before_data={"location": location.name, "quantity": before},
             after_data={"location": location.name, "quantity": balance.quantity},
             reason=reason,
-            metadata={"movement_id": str(movement.id), "origin": payload.origin, "document": payload.document},
+            metadata={
+                "movement_id": str(movement.id),
+                "origin": payload.origin,
+                "document": payload.document,
+                "acquisition_ids": [str(need.id) for need in fulfilled],
+            },
         )
         movements.append(movement)
     return movements

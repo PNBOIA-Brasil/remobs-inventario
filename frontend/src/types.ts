@@ -99,6 +99,29 @@ export interface WithdrawalAuditEntry {
   reason: string | null;
 }
 
+export type AcquisitionStatus = "sugerida" | "aprovada" | "em_compra" | "atendida" | "cancelada";
+export type AcquisitionPriority = "alta" | "media" | "baixa";
+
+export interface AcquisitionNeed {
+  id: string;
+  item_id: string;
+  item_name: string;
+  item_unit: string;
+  stock_total: number;
+  quantity: number;
+  received_quantity: number;
+  status: AcquisitionStatus;
+  priority: AcquisitionPriority;
+  origin: "automatica" | "manual";
+  reason: string | null;
+  process_number: string | null;
+  expected_date: string | null;
+  created_by_username: string | null;
+  updated_by_username: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type WithdrawalPurpose = "consumo" | "emprestimo" | "plataforma";
 
 export interface WithdrawalOrder {

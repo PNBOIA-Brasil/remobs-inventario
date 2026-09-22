@@ -1,5 +1,8 @@
 import { inventoryApi } from "../api/client";
 import type {
+  AcquisitionNeed,
+  AcquisitionPriority,
+  AcquisitionStatus,
   AlertItem,
   ApiList,
   AuditLog,
@@ -263,6 +266,29 @@ export const inventoryService = {
 
   async registerReceipt(payload: ReceiptPayload): Promise<{ movements: Movement[]; total_quantity: number }> {
     const response = await inventoryApi.post<{ movements: Movement[]; total_quantity: number }>("/inventory/receipts", payload);
+    return response.data;
+  },
+
+  async listAcquisitions(): Promise<ApiList<AcquisitionNeed>> {
+    const response = await inventoryApi.get<ApiList<AcquisitionNeed>>("/inventory/acquisitions");
+    return response.data;
+  },
+
+  async createAcquisition(payload: { item_id: string; quantity: number; priority: AcquisitionPriority; reason: string }): Promise<AcquisitionNeed> {
+    const response = await inventoryApi.post<AcquisitionNeed>("/inventory/acquisitions", payload);
+    return response.data;
+  },
+
+  async updateAcquisition(
+    id: string,
+    payload: { reason: string; status?: AcquisitionStatus; quantity?: number; priority?: AcquisitionPriority; process_number?: string; expected_date?: string },
+  ): Promise<AcquisitionNeed> {
+    const response = await inventoryApi.patch<AcquisitionNeed>(`/inventory/acquisitions/${id}`, payload);
+    return response.data;
+  },
+
+  async suggestAcquisitions(): Promise<{ created: number }> {
+    const response = await inventoryApi.post<{ created: number }>("/inventory/acquisitions/suggest");
     return response.data;
   },
 

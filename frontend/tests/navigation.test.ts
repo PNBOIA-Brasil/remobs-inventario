@@ -22,7 +22,7 @@ describe("navegação por permissão", () => {
 
     expect(groups.map(({ group, items }) => [group, items.map((item) => item.label)])).toEqual([
       ["Operação", ["Início", "Pedidos", "Receber material"]],
-      ["Estoque", ["Itens e saldos", "Alertas"]],
+      ["Estoque", ["Itens e saldos", "Alertas", "Aquisições"]],
       ["Campo", ["Plataformas", "Sensores", "Checklists"]],
       ["Administração", ["Locais", "Sincronização"]],
     ]);

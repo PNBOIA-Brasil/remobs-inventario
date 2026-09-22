@@ -11,7 +11,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.config import settings
 from app.core.errors import register_error_handlers
 from app.models import *  # noqa: F401,F403 - importa metadata dos modelos
-from app.routers import alerts, audit_logs, checklists, dashboard, inventory, locations, movements, platforms, receipts, sensors, sync, withdrawals
+from app.routers import acquisitions, alerts, audit_logs, checklists, dashboard, inventory, locations, movements, platforms, receipts, sensors, sync, withdrawals
 
 
 class RequestIdMiddleware(BaseHTTPMiddleware):
@@ -60,6 +60,7 @@ def create_app() -> FastAPI:
     app.include_router(movements.router)
     app.include_router(withdrawals.router)
     app.include_router(receipts.router)
+    app.include_router(acquisitions.router)
     app.include_router(audit_logs.router)
     app.include_router(alerts.router)
     app.include_router(checklists.router)

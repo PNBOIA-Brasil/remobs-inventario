@@ -1,4 +1,5 @@
 from app.core.database import Base
+from app.models.acquisition import AcquisitionNeed
 from app.models.alert import Alert
 from app.models.audit_log import AuditLog
 from app.models.checklist import FieldChecklist
@@ -10,6 +11,7 @@ from app.models.sensor import Sensor, SensorInstallation
 from app.models.sync import SyncAction
 
 __all__ = [
+    "AcquisitionNeed",
     "Alert",
     "AuditLog",
     "Base",

@@ -6,6 +6,7 @@ import OutboxIcon from "@mui/icons-material/Outbox";
 import type { SvgIconComponent } from "@mui/icons-material";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
 import CardActionArea from "@mui/material/CardActionArea";
 import CardContent from "@mui/material/CardContent";
@@ -252,7 +253,10 @@ export default function HomePage() {
                   <Card>
                     <CardContent>
                       <Stack spacing={1.5}>
-                        <Typography variant="h6">Estoque crítico</Typography>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center">
+                          <Typography variant="h6">Estoque crítico</Typography>
+                          <Button size="small" onClick={() => navigate("/app/acquisitions")}>Ver aquisições</Button>
+                        </Stack>
                         {summary.critical_stock_items.length === 0 && <Alert severity="success">Sem item abaixo do mínimo nacional.</Alert>}
                         {summary.critical_stock_items.map((item) => (
                           <Stack key={item.id} direction="row" justifyContent="space-between" gap={1}>

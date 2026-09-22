@@ -202,3 +202,65 @@ def test_entrada_soma_saldo_grava_movimento_e_historico(client: TestClient) -> N
 
     history = client.get(f"/inventory/items/{item_id}/history", headers=ADMIN).json()
     assert any(entry["action"] == "receipt_registered" for entry in history["audit_logs"])
+
+
+def _needs_for(client: TestClient, item_id: str) -> list[dict]:
+    response = client.get("/inventory/acquisitions", headers=REQUESTER)
+    assert response.status_code == 200, response.text
+    return [need for need in response.json()["items"] if need["item_id"] == item_id]
+
+
+def test_aquisicao_sugerida_pelo_minimo_segue_etapas_e_fecha_na_entrada(client: TestClient) -> None:
+    item_id, loc = _item(client, quantity=2, minimum_stock_national=5, ideal_stock=10)
+    [need] = _needs_for(client, item_id)
+    assert (need["status"], need["quantity"], need["origin"], need["priority"]) == ("sugerida", 8, "automatica", "media")
+
+    # Nova queda de saldo não duplica a sugestão aberta.
+    order = _order(client, [(item_id, loc, 1)])
+    client.post(f"/inventory/withdrawals/{order['id']}/approve", headers=PAIOL, json={"reason": "Ok."})
+    client.post(f"/inventory/withdrawals/{order['id']}/deliver", headers=PAIOL, json={"reason": "Ok."})
+    assert len(_needs_for(client, item_id)) == 1
+
+    forbidden = client.patch(f"/inventory/acquisitions/{need['id']}", headers=PAIOL, json={"status": "aprovada", "reason": "Ok."})
+    assert forbidden.status_code == 403
+    skip = client.patch(f"/inventory/acquisitions/{need['id']}", headers=ADMIN, json={"status": "atendida", "reason": "Pular."})
+    assert skip.status_code == 409
+
+    for step in ("aprovada", "em_compra"):
+        moved = client.patch(
+            f"/inventory/acquisitions/{need['id']}",
+            headers=ADMIN,
+            json={"status": step, "process_number": "PROC-7", "reason": f"Etapa {step}."},
+        )
+        assert moved.status_code == 200, moved.text
+    assert moved.json()["process_number"] == "PROC-7"
+
+    partial = client.post(
+        "/inventory/receipts",
+        headers=PAIOL,
+        json={"origin": "compra", "location_id": loc, "lines": [{"item_id": item_id, "quantity": 3}]},
+    )
+    assert partial.status_code == 201, partial.text
+    [need] = _needs_for(client, item_id)
+    assert (need["status"], need["received_quantity"]) == ("em_compra", 3)
+
+    client.post(
+        "/inventory/receipts",
+        headers=PAIOL,
+        json={"origin": "compra", "location_id": loc, "lines": [{"item_id": item_id, "quantity": 5}]},
+    )
+    needs = _needs_for(client, item_id)
+    assert [(n["status"], n["received_quantity"]) for n in needs] == [("atendida", 8)]
+
+
+def test_aquisicao_manual_e_varredura(client: TestClient) -> None:
+    item_id, _ = _item(client, quantity=0)
+    created = client.post(
+        "/inventory/acquisitions",
+        headers=ADMIN,
+        json={"item_id": item_id, "quantity": 4, "priority": "alta", "reason": "Reposição planejada."},
+    )
+    assert created.status_code == 201, created.text
+    assert (created.json()["status"], created.json()["origin"]) == ("aprovada", "manual")
+    assert client.post("/inventory/acquisitions/suggest", headers=ADMIN).status_code == 200
+    assert len(_needs_for(client, item_id)) == 1
