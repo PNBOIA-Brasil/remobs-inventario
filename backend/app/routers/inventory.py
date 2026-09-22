@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 from fastapi.responses import Response
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_async_session
@@ -52,7 +52,15 @@ async def list_items(
 ) -> dict:
     stmt = active_items_query().order_by(InventoryItem.name)
     if q:
-        stmt = stmt.where(InventoryItem.name.ilike(f"%{q}%"))
+        # Nome por trecho; patrimônio e série também, para o leitor de etiquetas achar pelo código.
+        pattern = f"%{q.strip()}%"
+        stmt = stmt.where(
+            or_(
+                InventoryItem.name.ilike(pattern),
+                InventoryItem.patrimony_number.ilike(pattern),
+                InventoryItem.serial_number.ilike(pattern),
+            )
+        )
     if item_type:
         stmt = stmt.where(InventoryItem.item_type == item_type)
 

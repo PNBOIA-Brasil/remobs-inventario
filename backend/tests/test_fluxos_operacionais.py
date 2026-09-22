@@ -264,3 +264,13 @@ def test_aquisicao_manual_e_varredura(client: TestClient) -> None:
     assert (created.json()["status"], created.json()["origin"]) == ("aprovada", "manual")
     assert client.post("/inventory/acquisitions/suggest", headers=ADMIN).status_code == 200
     assert len(_needs_for(client, item_id)) == 1
+
+
+def test_busca_de_itens_acha_por_patrimonio_e_serie(client: TestClient) -> None:
+    patrimonio = f"PAT-{uuid.uuid4().hex[:8]}"
+    serie = f"SN-{uuid.uuid4().hex[:8]}"
+    item_id, _ = _item(client, quantity=1, item_type="permanent_component", patrimony_number=patrimonio, serial_number=serie)
+
+    for code in (patrimonio, serie.lower()):
+        found = client.get("/inventory/items", headers=REQUESTER, params={"q": code}).json()["items"]
+        assert [item["id"] for item in found] == [item_id]

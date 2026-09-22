@@ -1,5 +1,6 @@
 import AssignmentTurnedInIcon from "@mui/icons-material/AssignmentTurnedIn";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
+import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import ChecklistIcon from "@mui/icons-material/FactCheck";
 import HubIcon from "@mui/icons-material/Hub";
@@ -31,6 +32,7 @@ export const navigationItems: NavigationItem[] = [
   { label: "Início", path: "/app/home", icon: DashboardIcon, permissions: [], group: "Operação", bottom: true },
   { label: "Pedidos", path: "/app/movements", icon: AssignmentTurnedInIcon, permissions: [...REQUEST_PERMISSIONS, ...PAIOL_PERMISSIONS], group: "Operação", bottom: true },
   { label: "Receber material", path: "/app/receipts/new", icon: MoveToInboxIcon, permissions: RECEIPT_PERMISSIONS, group: "Operação", bottom: false },
+  { label: "Escanear", path: "/app/scan", icon: QrCodeScannerIcon, permissions: ["inventory:item:read"], group: "Operação", bottom: true },
   { label: "Itens e saldos", path: "/app/inventory", icon: InventoryIcon, permissions: ["inventory:item:read"], group: "Estoque", bottom: true },
   { label: "Alertas", path: "/app/alerts", icon: WarningAmberIcon, permissions: ["inventory:item:read"], group: "Estoque", bottom: false },
   { label: "Aquisições", path: "/app/acquisitions", icon: ShoppingCartIcon, permissions: ["inventory:item:read"], group: "Estoque", bottom: false },

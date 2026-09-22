@@ -3,6 +3,7 @@ import FactCheckIcon from "@mui/icons-material/FactCheck";
 import InventoryIcon from "@mui/icons-material/Inventory2";
 import MoveToInboxIcon from "@mui/icons-material/MoveToInbox";
 import OutboxIcon from "@mui/icons-material/Outbox";
+import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
 import type { SvgIconComponent } from "@mui/icons-material";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
@@ -143,7 +144,12 @@ export default function HomePage() {
     ...(hasPermission("checklist:submit")
       ? [{ label: "Novo checklist", hint: "Inspeção de plataforma", path: "/app/checklists/new", icon: FactCheckIcon }]
       : []),
-    ...(canReadStock ? [{ label: "Consultar estoque", hint: "Saldo por local", path: "/app/inventory", icon: InventoryIcon }] : []),
+    ...(canReadStock
+      ? [
+          { label: "Escanear etiqueta", hint: "Abre o item pelo código", path: "/app/scan", icon: QrCodeScannerIcon },
+          { label: "Consultar estoque", hint: "Saldo por local", path: "/app/inventory", icon: InventoryIcon },
+        ]
+      : []),
   ];
 
   const metrics = [

@@ -25,6 +25,7 @@ const routes = [
   "app/sensors/new",
   "app/checklists",
   "app/checklists/new",
+  "app/scan",
   "app/sync",
   "app/menu",
   "app/admin/audit-logs",

@@ -27,6 +27,7 @@ import PlatformsPage from "./pages/PlatformsPage";
 import SensorDetailPage from "./pages/SensorDetailPage";
 import SensorFormPage from "./pages/SensorFormPage";
 import SensorsPage from "./pages/SensorsPage";
+import ScanPage from "./pages/ScanPage";
 import SyncPage from "./pages/SyncPage";
 import { useAuth } from "./state/AuthContext";
 
@@ -72,6 +73,7 @@ export default function App() {
           <Route path="checklists" element={<ChecklistListPage />} />
           <Route path="checklists/new" element={<ChecklistFormPage />} />
           <Route path="checklists/:id" element={<ChecklistDetailPage />} />
+          <Route path="scan" element={<ScanPage />} />
           <Route path="sync" element={<SyncPage />} />
           <Route path="menu" element={<MenuPage />} />
         </Route>

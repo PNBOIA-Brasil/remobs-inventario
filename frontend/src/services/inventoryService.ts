@@ -162,8 +162,9 @@ export const inventoryService = {
     return response.data;
   },
 
-  async listItems(): Promise<ApiList<InventoryItem>> {
-    const response = await inventoryApi.get<ApiList<InventoryItem>>("/inventory/items");
+  /** `q` busca por trecho do nome, patrimônio ou número de série. */
+  async listItems(options?: { q?: string }): Promise<ApiList<InventoryItem>> {
+    const response = await inventoryApi.get<ApiList<InventoryItem>>("/inventory/items", options?.q ? { params: { q: options.q } } : undefined);
     return response.data;
   },
 

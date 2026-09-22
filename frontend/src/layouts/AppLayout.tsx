@@ -35,7 +35,7 @@ export default function AppLayout() {
   const visibleItems = useMemo(() => getVisibleNavigation(permissions), [permissions]);
   const groupedItems = useMemo(() => getGroupedNavigation(permissions), [permissions]);
   const bottomItems = [
-    ...visibleItems.filter((item) => item.bottom).slice(0, 3),
+    ...visibleItems.filter((item) => item.bottom).slice(0, 4),
     { label: "Menu", path: "/app/menu", icon: AppsIcon },
   ];
   const current = visibleItems.find((item) => location.pathname.startsWith(item.path));
