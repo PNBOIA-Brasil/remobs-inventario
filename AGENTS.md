@@ -146,7 +146,6 @@ As seguintes telas foram projetadas, geradas no Google Stitch (projeto `15941217
 | Solicitar Saída - Desktop View | DESKTOP | `7dde335b3eda4b72805e7bb804830cfb` | [Solicitar_Saida_-_Desktop_View_desktop.html](file:///c:/Users/remob/Desktop/desenvolvimento/remobs-inventario/telas/Solicitar_Saida_-_Desktop_View_desktop.html) |
 | REMOBS Logo | ASSET | `8ba13896e2354526ae103e151f933cff` | [REMOBS_Logo_asset.svg](file:///c:/Users/remob/Desktop/desenvolvimento/remobs-inventario/telas/REMOBS_Logo_asset.svg) |
 
-
 ## Git e Versionamento
 
 Nunca crie commit sem confirmação explícita do usuário.
@@ -188,3 +187,4 @@ Antes de concluir:
 1. Atualizar `CHANGELOG.md`
 2. Validar se toda a documentação está em pt-BR
 3. Solicitar confirmação do usuário antes de criar commit
+

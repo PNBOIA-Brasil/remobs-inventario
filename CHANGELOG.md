@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## [2026-09-22]
+
+### Adicionado
+- Pedido de retirada com uma ou mais linhas, reserva na solicitação, aprovação e entrega pelo perfil paiol, devolução e baixa de consumo com aceite ou recusa.
+- Histórico auditável do pedido e do item, com ator, papel e motivo.
+- Permissões novas e role `paiol` no script de registro, sem conceder decisão de paiol à role `admin-inventario`.
+- Telas de solicitação em lista, fila do paiol e detalhe com devolução, baixa e linha do tempo.
+- Cache PWA `remobs-inventario-v12`.
+- Proposta de redesenho das telas mobile e desktop orientada a fluxos (entrada, retirada e empréstimo, devolução, aquisição), com mapa de jornadas e mudanças de backend necessárias: `planos/2026-09-22-redesenho-telas-por-fluxos.md`.
+
+### Documentado
+- O fluxo antigo de saída unitária permanece para pedidos já pendentes.
+- A reserva ocorre na solicitação, para dois pedidos não consumirem o mesmo saldo. A aprovação mantém a reserva; a recusa libera; a entrega baixa o saldo e cria a posse.
+- Plano de correção: `planos/2026-09-22-fluxo-retirada-paiol-devolucao-baixa.md`.
+- Plano de implementação, commits, deploy e roteiro de teste: `planos/2026-09-22-implementacao-retirada-paiol.md`.
+- Deploy da API e do frontend de inventário ainda não executado.
+- No controle de usuários, os papéis do inventário passaram a usar o prefixo `inventario`: `admin-inventario` virou `inventario-admin` (id 24) e `paiol` virou `inventario-paiol` (id 31). O papel `inventario-usuario` (id 32) foi criado para consulta e solicitação, ainda sem usuário associado. `foloni` permanece em `inventario-admin` e `inventario-paiol`.
+
 ## [2026-08-12]
 
 ### Publicado
