@@ -104,6 +104,16 @@ class StockMovement(Base):
     status: Mapped[str] = mapped_column(String(64), default="pending", nullable=False, index=True)
     reason: Mapped[str] = mapped_column(Text, nullable=False)
     decision_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    withdrawal_order_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey(table_ref("withdrawal_orders")),
+        nullable=True,
+    )
+    withdrawal_line_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey(table_ref("withdrawal_lines")),
+        nullable=True,
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
