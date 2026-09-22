@@ -51,6 +51,14 @@ export interface MovementRequestPayload {
   reason: string;
 }
 
+export interface ReceiptPayload {
+  origin: "compra" | "doacao" | "transferencia";
+  document?: string;
+  location_id: string;
+  notes?: string;
+  lines: Array<{ item_id: string; quantity: number }>;
+}
+
 export interface ChecklistPayload {
   title?: string;
   template_name?: string;
@@ -250,6 +258,11 @@ export const inventoryService = {
 
   async rejectMovement(id: string, reason: string): Promise<Movement> {
     const response = await inventoryApi.post<Movement>(`/inventory/movements/${id}/reject`, { reason });
+    return response.data;
+  },
+
+  async registerReceipt(payload: ReceiptPayload): Promise<{ movements: Movement[]; total_quantity: number }> {
+    const response = await inventoryApi.post<{ movements: Movement[]; total_quantity: number }>("/inventory/receipts", payload);
     return response.data;
   },
 

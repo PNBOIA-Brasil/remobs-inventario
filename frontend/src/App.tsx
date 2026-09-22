@@ -19,6 +19,7 @@ import MenuPage from "./pages/MenuPage";
 import MovementRequestPage from "./pages/MovementRequestPage";
 import MovementsPage from "./pages/MovementsPage";
 import WithdrawalDetailPage from "./pages/WithdrawalDetailPage";
+import ReceiptPage from "./pages/ReceiptPage";
 import PlatformDetailPage from "./pages/PlatformDetailPage";
 import PlatformFormPage from "./pages/PlatformFormPage";
 import PlatformsPage from "./pages/PlatformsPage";
@@ -53,6 +54,7 @@ export default function App() {
           <Route path="movements" element={<MovementsPage />} />
           <Route path="movements/new" element={<MovementRequestPage />} />
           <Route path="withdrawals/:id" element={<WithdrawalDetailPage />} />
+          <Route path="receipts/new" element={<ReceiptPage />} />
           <Route path="alerts" element={<AlertsPage />} />
           <Route path="locations" element={<LocationsPage />} />
           <Route path="locations/new" element={<LocationFormPage />} />

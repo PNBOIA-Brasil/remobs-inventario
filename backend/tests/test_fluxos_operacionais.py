@@ -162,3 +162,43 @@ def test_finalidade_emprestimo_exige_prazo_e_plataforma_exige_destino(client: Te
 
     padrao = _order(client, [(a_id, a_loc, 1)])
     assert padrao["purpose"] == "consumo"
+
+
+def test_entrada_soma_saldo_grava_movimento_e_historico(client: TestClient) -> None:
+    item_id, loc = _item(client, quantity=1, minimum_stock_national=5)
+
+    campo = client.post(
+        "/inventory/receipts",
+        headers=REQUESTER,
+        json={"origin": "compra", "location_id": loc, "lines": [{"item_id": item_id, "quantity": 1}]},
+    )
+    assert campo.status_code == 403
+
+    duplicada = client.post(
+        "/inventory/receipts",
+        headers=PAIOL,
+        json={"origin": "compra", "location_id": loc, "lines": [{"item_id": item_id, "quantity": 1}] * 2},
+    )
+    assert duplicada.status_code == 422
+
+    response = client.post(
+        "/inventory/receipts",
+        headers=PAIOL,
+        json={
+            "origin": "compra",
+            "document": "NF 004.221",
+            "location_id": loc,
+            "notes": "Conferido com a nota.",
+            "lines": [{"item_id": item_id, "quantity": 6}],
+        },
+    )
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body["total_quantity"] == 6
+    movement = body["movements"][0]
+    assert (movement["movement_type"], movement["status"], movement["to_location_id"]) == ("entrada", "completed", loc)
+    assert movement["reason"] == "Compra · documento NF 004.221. Conferido com a nota."
+    assert _stock_at(client, ADMIN, item_id, "Paiol fluxo")["quantity"] == 7
+
+    history = client.get(f"/inventory/items/{item_id}/history", headers=ADMIN).json()
+    assert any(entry["action"] == "receipt_registered" for entry in history["audit_logs"])

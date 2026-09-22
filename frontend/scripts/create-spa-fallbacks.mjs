@@ -14,6 +14,7 @@ const routes = [
   "app/movements/new",
   "app/withdrawals",
   "app/withdrawals/new",
+  "app/receipts/new",
   "app/alerts",
   "app/locations",
   "app/locations/new",

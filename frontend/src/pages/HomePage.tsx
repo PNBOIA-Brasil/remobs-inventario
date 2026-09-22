@@ -1,6 +1,7 @@
 import AssignmentReturnIcon from "@mui/icons-material/AssignmentReturn";
 import FactCheckIcon from "@mui/icons-material/FactCheck";
 import InventoryIcon from "@mui/icons-material/Inventory2";
+import MoveToInboxIcon from "@mui/icons-material/MoveToInbox";
 import OutboxIcon from "@mui/icons-material/Outbox";
 import type { SvgIconComponent } from "@mui/icons-material";
 import Alert from "@mui/material/Alert";
@@ -16,7 +17,7 @@ import { useNavigate } from "react-router-dom";
 
 import LoadingState from "../components/LoadingState";
 import StatusChip from "../components/StatusChip";
-import { PAIOL_PERMISSIONS, REQUEST_PERMISSIONS } from "../navigation";
+import { PAIOL_PERMISSIONS, RECEIPT_PERMISSIONS, REQUEST_PERMISSIONS } from "../navigation";
 import { inventoryService } from "../services/inventoryService";
 import { useAuth } from "../state/AuthContext";
 import type { DashboardSummary, WithdrawalOrder } from "../types";
@@ -134,6 +135,9 @@ export default function HomePage() {
             icon: AssignmentReturnIcon,
           },
         ]
+      : []),
+    ...(hasAnyPermission(...RECEIPT_PERMISSIONS)
+      ? [{ label: "Receber material", hint: "Entrada de compra ou doação", path: "/app/receipts/new", icon: MoveToInboxIcon }]
       : []),
     ...(hasPermission("checklist:submit")
       ? [{ label: "Novo checklist", hint: "Inspeção de plataforma", path: "/app/checklists/new", icon: FactCheckIcon }]

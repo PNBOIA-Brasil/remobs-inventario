@@ -2,6 +2,8 @@ import type { WithdrawalOrder } from "./types";
 
 export function movementTypeLabel(movementType: string | undefined): string {
   switch (movementType) {
+    case "entrada":
+      return "Entrada";
     case "reserva":
       return "Reserva";
     case "entrega":
@@ -29,6 +31,7 @@ export function auditActionLabel(action: string): string {
     writeoff_requested: "Baixa solicitada",
     writeoff_accepted: "Baixa aceita",
     writeoff_refused: "Baixa recusada",
+    receipt_registered: "Entrada registrada",
   };
   return labels[action] || action;
 }
