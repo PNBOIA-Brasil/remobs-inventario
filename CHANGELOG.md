@@ -2,6 +2,9 @@
 
 ## [2026-09-23]
 
+### Publicado — leitura do QR Code da retirada
+- Produção: somente frontend, Amplify job `41` `SUCCEED`, bundle `index-DReM2KDq.js`, cache PWA `v18`. Backend e banco sem alteração. Rollback: republicar o job 40 no Amplify.
+
 ### Corrigido — leitura do QR Code da retirada na tela Escanear
 - Ler o QR Code da retirada na tela Escanear abre diretamente o pedido, já na etapa em que ele se encontra (aprovação, entrega, devolução ou baixa). Antes, o id do pedido era tratado como id de material e abria uma ficha inexistente.
 - O código curto `RET-XXXXXXXX` digitado também abre o pedido correspondente, entre as retiradas visíveis ao usuário; sem correspondência, a tela avisa.

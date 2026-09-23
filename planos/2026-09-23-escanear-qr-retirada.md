@@ -23,4 +23,12 @@ Ao ler o QR Code da retirada na tela Escanear (mobile), abrir diretamente o pedi
 
 ## Resultado
 
-Implementado e validado localmente. Pendente: commit e deploy, mediante confirmação do usuário.
+Implementado e validado localmente. Commit `425f5ee`.
+
+Deploy autorizado pelo usuário em 2026-09-23 (profile `aws-remobs`, `sa-east-1`), por upload manual do `dist`:
+
+| Destino | Resultado |
+| :--- | :--- |
+| Amplify | app `d1oidnxd2f4saq`, branch `prod`, job `41` `SUCCEED`, bundle `index-DReM2KDq.js`, `sw.js` `v18`, `/app/scan` respondendo 200 |
+
+Rollback: republicação do job 40 no Amplify.
