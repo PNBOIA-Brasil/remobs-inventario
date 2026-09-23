@@ -2,6 +2,9 @@
 
 ## [2026-09-23]
 
+### Corrigido
+- Links diretos para rotas com id (`/app/withdrawals/<id>`, `/app/inventory/<id>` e outras) davam 404. A regra de reescrita do Amplify passou a mandar todo caminho sem extensão de arquivo para `/index.html` com status 200. Sem mudança de código. Plano: `planos/2026-09-23-reescrita-spa-amplify.md`.
+
 ### Publicado
 - Produção: imagem `prod-2026-09-23-admin-aprova`, task definition `remobs-inventario-backend:15` (`COMPLETED`), Amplify job `36` `SUCCEED`, cache PWA `v13`. Sem migração de banco.
 
