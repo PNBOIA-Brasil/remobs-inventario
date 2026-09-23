@@ -28,8 +28,18 @@ const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 const WITHDRAWAL_URL = new RegExp(`/withdrawals/(${UUID.source})`, "i");
 const WITHDRAWAL_CODE = /^RET-[0-9A-F]{8}$/i;
 
-function detectorCtor(): BarcodeDetectorCtor | undefined {
-  return (window as unknown as { BarcodeDetector?: BarcodeDetectorCtor }).BarcodeDetector;
+/** Usa a API nativa quando existe; no iPhone (WebKit) e no Chrome desktop do Windows, carrega o leitor zxing-wasm do próprio app. */
+async function loadDetector(): Promise<BarcodeDetectorCtor> {
+  const native = (window as unknown as { BarcodeDetector?: BarcodeDetectorCtor }).BarcodeDetector;
+  if (native) return native;
+  const [{ BarcodeDetector, prepareZXingModule }, { default: wasmUrl }] = await Promise.all([
+    import("barcode-detector/ponyfill"),
+    import("zxing-wasm/reader/zxing_reader.wasm?url"),
+  ]);
+  prepareZXingModule({
+    overrides: { locateFile: (path: string, prefix: string) => (path.endsWith(".wasm") ? wasmUrl : prefix + path) },
+  });
+  return BarcodeDetector as unknown as BarcodeDetectorCtor;
 }
 
 /** Etiqueta com o id do item (ou link /app/inventory/<id>) abre direto; senão busca por patrimônio, série ou nome. */
@@ -53,7 +63,7 @@ export default function ScanPage() {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const navigate = useNavigate();
-  const canUseCamera = Boolean(detectorCtor() && navigator.mediaDevices?.getUserMedia);
+  const canUseCamera = Boolean(navigator.mediaDevices?.getUserMedia);
 
   async function lookup(raw: string) {
     const value = raw.trim();
@@ -115,23 +125,26 @@ export default function ScanPage() {
 
   useEffect(() => {
     if (!cameraOn) return;
-    const Ctor = detectorCtor();
-    if (!Ctor) return;
-    const detector = new Ctor({ formats: ["qr_code", "code_128", "code_39", "ean_13", "ean_8"] });
     let stream: MediaStream | null = null;
     let timer: number | undefined;
     let stopped = false;
+    let busy = false;
 
-    navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: "environment" } })
-      .then((media) => {
+    Promise.all([loadDetector(), navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })])
+      .then(([Ctor, media]) => {
         stream = media;
-        if (stopped || !videoRef.current) return;
+        if (stopped || !videoRef.current) {
+          media.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        const detector = new Ctor({ formats: ["qr_code", "code_128", "code_39", "ean_13", "ean_8"] });
         videoRef.current.srcObject = media;
         void videoRef.current.play();
         timer = window.setInterval(async () => {
-          if (!videoRef.current || videoRef.current.readyState < 2) return;
+          if (busy || !videoRef.current || videoRef.current.readyState < 2) return;
+          busy = true;
           const [first] = await detector.detect(videoRef.current).catch(() => []);
+          busy = false;
           if (first?.rawValue && !stopped) {
             stopped = true;
             setCameraOn(false);

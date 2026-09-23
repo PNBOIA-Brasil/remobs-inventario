@@ -2,6 +2,11 @@
 
 ## [2026-09-23]
 
+### Corrigido — leitura pela câmera no iPhone
+- A tela Escanear passa a ler QR Code e códigos de barras pela câmera no iPhone (Safari e Chrome) e no Chrome desktop do Windows, que não têm a API nativa `BarcodeDetector`. Nesses navegadores, o leitor zxing-wasm é carregado sob demanda do próprio app, sem CDN externa; onde há API nativa, nada muda.
+- A câmera é liberada ao sair da tela antes de a permissão ser concedida, e leituras sobrepostas são evitadas.
+- Nova dependência de frontend `barcode-detector`. Sem mudança no backend. Cache PWA `remobs-inventario-v19`. Plano: `planos/2026-09-23-leitor-camera-iphone.md`.
+
 ### Publicado — leitura do QR Code da retirada
 - Produção: somente frontend, Amplify job `41` `SUCCEED`, bundle `index-DReM2KDq.js`, cache PWA `v18`. Backend e banco sem alteração. Rollback: republicar o job 40 no Amplify.
 
