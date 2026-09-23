@@ -2,6 +2,9 @@
 
 ## [2026-09-23]
 
+### Publicado — QR Code da devolução
+- Produção: somente frontend, Amplify job `44` `SUCCEED`, bundle `index-BxLO3gZC.js`, cache PWA `v20`. Backend e banco sem alteração. Rollback: republicar o job 43 no Amplify.
+
 ### Adicionado — QR Code da devolução
 - Cada devolução pendente gera um QR Code próprio e o código curto `DEV-XXXXXXXX`, exibidos ao solicitante no pedido, com tela cheia, cópia do código e download PNG.
 - O responsável pelo paiol lê o QR na tela Escanear (ou digita o código `DEV-`) e abre o pedido com a devolução destacada, pronta para aceitar ou recusar. As permissões de decisão não mudam.

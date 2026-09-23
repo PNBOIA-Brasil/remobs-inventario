@@ -26,4 +26,12 @@ Cada pedido de devolução gera um novo QR Code. O responsável pelo paiol lê o
 
 ## Resultado
 
-Implementado e validado localmente. Commit e deploy aguardam confirmação do usuário.
+Implementado e validado localmente. Commit `9622a8e`.
+
+Deploy autorizado pelo usuário em 2026-09-23 (profile `aws-remobs`, `sa-east-1`), por upload manual do `dist`:
+
+| Destino | Resultado |
+| :--- | :--- |
+| Amplify | app `d1oidnxd2f4saq`, branch `prod`, job `44` `SUCCEED`, bundle `index-BxLO3gZC.js`, `sw.js` `v20`, `/app/scan` respondendo 200 |
+
+Rollback: republicação do job 43 no Amplify.
