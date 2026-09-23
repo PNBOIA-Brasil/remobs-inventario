@@ -2,6 +2,11 @@
 
 ## [2026-09-23]
 
+### Adicionado — folha A4 de etiquetas e QR Code na lista de itens
+- A lista de itens mostra o QR Code e o número patrimonial de cada item.
+- Na lista, os itens podem ser selecionados um a um ou todos os visíveis (respeitando busca e filtro), e o botão "Imprimir etiquetas" gera uma folha A4 com 27 etiquetas de 62 × 29 mm por página (3 × 9), com linha de corte tracejada.
+- A etiqueta individual do detalhe do item passa a usar o mesmo módulo de impressão. Somente frontend, sem migração. Cache PWA `remobs-inventario-v22`. Plano: `planos/2026-09-23-etiquetas-lote-qr-lista.md`.
+
 ### Publicado — número patrimonial e QR Code do item
 - Produção: migração `0007_item_patrimony_unique` aplicada (831 itens numerados de `REM-000001` a `REM-000831`, sem duplicados), backend na task definition `remobs-inventario-backend:18` e frontend no Amplify job `45` `SUCCEED`, bundle `index-DYl9f8kD.js`, cache PWA `v21`.
 - Rollback: ECS de volta para `remobs-inventario-backend:17` e republicação do job 44 no Amplify; os números gerados permanecem.
