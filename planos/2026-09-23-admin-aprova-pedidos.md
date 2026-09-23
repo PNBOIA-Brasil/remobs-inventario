@@ -27,4 +27,13 @@ Não há mudança no `remobs-users` nem novo login obrigatório. Continuam só d
 
 ## Resultado
 
-Implementado e testado localmente. Commit e deploy aguardam confirmação do usuário.
+Autorizado pelo usuário em 2026-09-23. Commits `595d9c6` (regra) e `5222874` (cache PWA `v13`), com push.
+
+| Item | Valor |
+|------|-------|
+| Imagem ECR | `prod-2026-09-23-admin-aprova` |
+| Task definition | `remobs-inventario-backend:15`, rollout `COMPLETED`, `healthz` 200 |
+| Amplify | job `36` `SUCCEED`, bundle `index-BLLHr6c1.js`, `sw.js` `v13` |
+| Banco | sem migração |
+
+Rollback: serviço ECS de volta para `remobs-inventario-backend:14` e republicação do job 35 no Amplify.
