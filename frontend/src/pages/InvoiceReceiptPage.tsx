@@ -4,6 +4,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import CloseIcon from "@mui/icons-material/Close";
 import DescriptionIcon from "@mui/icons-material/Description";
+import DownloadIcon from "@mui/icons-material/Download";
 import PhotoLibraryIcon from "@mui/icons-material/PhotoLibrary";
 import PrintIcon from "@mui/icons-material/Print";
 import RemoveIcon from "@mui/icons-material/Remove";
@@ -237,9 +238,14 @@ export default function InvoiceReceiptPage() {
   function status(decision: Decision, line: InvoiceLine): { label: string; color: "success" | "info" | "warning" | "default" | "error" } {
     if (decision.missing) return { label: "Não veio", color: "error" };
     if (!decision.confirmed) return { label: "Pendente", color: "default" };
-    if (decision.choice === "new") return { label: "Item novo", color: "info" };
     if (Number(decision.quantity) !== line.quantity) return { label: "Qtd. diferente", color: "warning" };
+    if (isPermanent(decision)) return { label: `${decision.quantity} unidade(s) nova(s)`, color: "info" };
+    if (decision.choice === "new") return { label: "Item novo", color: "info" };
     return { label: "Vinculado", color: "success" };
+  }
+
+  function isPermanent(decision: Decision): boolean {
+    return (decision.choice === "new" && !decision.created ? decision.newType : resolved(decision)?.item_type) === "permanent_component";
   }
 
   async function register() {
@@ -266,7 +272,7 @@ export default function InvoiceReceiptPage() {
       }
 
       // Soma linhas que caíram no mesmo item: a entrada não aceita item repetido.
-      const merged = new Map<string, { item_id: string; quantity: number; supplier_code?: string }>();
+      const merged = new Map<string, { item_id: string; quantity: number; supplier_code?: string; permanent: boolean; photos: File[] }>();
       const divergences: string[] = [];
       current.forEach((decision, i) => {
         const line = invoice.lines[i];
@@ -277,9 +283,11 @@ export default function InvoiceReceiptPage() {
         const item = resolved(decision)!;
         const amount = Number(decision.quantity);
         if (amount !== line.quantity) divergences.push(`${item.name}: ${qty(amount)} de ${qty(line.quantity)}`);
-        const entry = merged.get(item.id);
-        if (entry) entry.quantity += amount;
-        else merged.set(item.id, { item_id: item.id, quantity: amount, ...(line.supplier_code ? { supplier_code: line.supplier_code } : {}) });
+        const entry = merged.get(item.id) ?? { item_id: item.id, quantity: 0, permanent: item.item_type === "permanent_component", photos: [] };
+        entry.quantity += amount;
+        if (line.supplier_code && !entry.supplier_code) entry.supplier_code = line.supplier_code;
+        if (decision.photo) entry.photos.push(decision.photo);
+        merged.set(item.id, entry);
       });
       const document = [`NF ${header.number || "sem número"}${header.series ? ` série ${header.series}` : ""}`, header.supplier_name.trim()].filter(Boolean).join(" · ");
       const noteText = [notes.trim(), divergences.length ? `Divergências: ${divergences.join("; ")}.` : ""].filter(Boolean).join(" ");
@@ -288,27 +296,34 @@ export default function InvoiceReceiptPage() {
         location_id: locationId,
         document: document.slice(0, 160),
         ...(noteText ? { notes: noteText } : {}),
-        lines: [...merged.values()],
+        lines: [...merged.values()].map(({ item_id, quantity, supplier_code }) => ({ item_id, quantity, ...(supplier_code ? { supplier_code } : {}) })),
         invoice_id: invoice.invoice_id,
+        ...(header.number.trim() ? { invoice_number: header.number.trim() } : {}),
         ...(header.supplier_cnpj.trim() ? { supplier_cnpj: header.supplier_cnpj.trim() } : {}),
       });
 
-      // Fotos por último: falha numa foto não desfaz a entrada.
+      // Fotos por último: falha numa foto não desfaz a entrada. A resposta traz os itens na ordem das
+      // linhas; permanente traz uma unidade nova por peça e cada unidade recebe a foto.
       let photoFailures = 0;
-      for (const decision of current) {
-        if (decision.missing || !decision.photo) continue;
-        await inventoryService.uploadReceiptPhoto(resolved(decision)!.id, decision.photo).catch(() => {
-          photoFailures += 1;
-        });
+      let cursor = 0;
+      for (const entry of merged.values()) {
+        const targets = result.items.slice(cursor, cursor + (entry.permanent ? entry.quantity : 1));
+        cursor += targets.length;
+        for (const target of targets) {
+          for (const photo of entry.photos) {
+            await inventoryService.uploadReceiptPhoto(target.id, photo).catch(() => {
+              photoFailures += 1;
+            });
+          }
+        }
       }
-      const received = [...merged.keys()].map((id) => current.map((d) => resolved(d)).find((item) => item?.id === id)!);
       setDone({
-        lines: merged.size,
+        lines: result.items.length,
         units: result.total_quantity,
-        created: current.filter((decision) => decision.created && !decision.missing).length,
+        created: result.items.filter((item) => !byId.has(item.id)).length,
         divergences,
         photoFailures,
-        items: received,
+        items: result.items,
       });
       setStage("done");
       showSuccess(`Entrada registrada: ${result.total_quantity} unidade(s).`);
@@ -551,6 +566,12 @@ export default function InvoiceReceiptPage() {
                         <FormControlLabel value="new" control={<Radio />} label="Não está no estoque: cadastrar item novo" sx={{ m: 0, border: "1px solid", borderColor: "divider", borderRadius: 2 }} />
                       )}
                     </RadioGroup>
+                    {isPermanent(decision) && (
+                      <Alert severity="info">
+                        Permanente: cada peça vira uma unidade nova, com patrimônio e etiqueta próprios
+                        {resolved(decision) ? `, usando o cadastro de ${resolved(decision)!.name}` : ""}. Serão {decision.quantity || 0} unidade(s).
+                      </Alert>
+                    )}
                     {!canCreate && (
                       <Typography variant="body2" color="text.secondary">Material sem cadastro: peça ao administrador do inventário ou marque "Item não veio".</Typography>
                     )}
@@ -733,7 +754,7 @@ export default function InvoiceReceiptPage() {
                 </Typography>
               </Stack>
               <Alert severity="success">NF {header.number || "sem número"} anexada à entrada.</Alert>
-              {done.created > 0 && <Alert severity="info">{done.created} item(ns) novo(s) com número patrimonial gerado.</Alert>}
+              {done.created > 0 && <Alert severity="info">{done.created} item(ns) ou unidade(s) nova(s) com número patrimonial gerado.</Alert>}
               {done.divergences.length > 0 && <Alert severity="warning">Divergências registradas: {done.divergences.join("; ")}.</Alert>}
               {done.photoFailures > 0 && <Alert severity="error">{done.photoFailures} foto(s) não foram enviadas. Anexe pela ficha do item.</Alert>}
               <Button
@@ -743,6 +764,17 @@ export default function InvoiceReceiptPage() {
                 onClick={() => !printLabels(done.items, "a4") && showError("Permita pop-ups deste site para imprimir as etiquetas.")}
               >
                 Imprimir etiquetas (folha A4)
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<DownloadIcon />}
+                onClick={() =>
+                  inventoryService
+                    .downloadInvoice(invoice!.invoice_id)
+                    .catch(() => showError("Não foi possível baixar a nota fiscal."))
+                }
+              >
+                Baixar nota fiscal
               </Button>
               <Button variant="outlined" onClick={() => navigate("/app/inventory")}>
                 Ver itens no estoque

@@ -2,6 +2,12 @@
 
 ## [2026-09-23]
 
+### Alterado — permanente vira unidade nova por peça e nota fiscal para baixar
+- Na entrada de material (por nota fiscal ou manual), cada peça de um item permanente vira uma unidade nova, com número patrimonial e etiqueta próprios e o mesmo cadastro (nome, categoria, marca, modelo, unidade e descrição) do item informado, que não recebe saldo. Um permanente cadastrado e ainda sem movimento nem saldo é usado como a primeira peça.
+- No recebimento por nota, o item permanente mostra quantas unidades serão criadas, a foto vai para cada unidade nova e as etiquetas impressas são as das unidades.
+- A nota fiscal fica guardada no S3 (`inventario-remobs`) e ligada a cada movimento de entrada. Ela pode ser baixada na conclusão do recebimento e pelo botão "Nota fiscal" no histórico do item.
+- Backend: migração `0008_movement_invoice` (`stock_movements.invoice_id`), rotas `GET /inventory/receipts/invoices/{id}/files` e `GET /inventory/receipts/invoices/{id}/files/{file_id}/content`; a resposta da entrada passa a trazer `items` e aceita `invoice_number`. Cache PWA `remobs-inventario-v24`. Plano: `planos/2026-09-23-recebimento-nota-fiscal.md`.
+
 ### Publicado — recebimento de material por nota fiscal
 - Produção: backend na task definition `remobs-inventario-backend:19` (imagem `prod-2026-09-23-nota-fiscal`) e frontend no Amplify job `47` `SUCCEED`, bundle `index-CQS0u9we.js`, cache PWA `v23`. Sem migração.
 - IAM: role `remobs-inventario-invoice-reader` na conta de IA (`543483798724`), só com `bedrock:InvokeModel` no Qwen3-VL, e permissão de assumi-la na task role do backend. Leitura validada em produção por uma task avulsa.

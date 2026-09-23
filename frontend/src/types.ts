@@ -54,6 +54,7 @@ export interface Movement {
   approved_by_username: string | null;
   status: string;
   reason: string;
+  invoice_id?: string | null;
   created_at: string;
 }
 

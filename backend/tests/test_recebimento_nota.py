@@ -102,3 +102,48 @@ def test_foto_do_recebimento_so_aceita_imagem(client: TestClient) -> None:
     text = client.post("/inventory/receipts/photos", headers=PAIOL, data={"item_id": item_id}, files={"file": ("f.txt", b"x", "text/plain")})
     assert text.status_code == 400
     assert client.post("/inventory/receipts/photos", headers=REQUESTER, data={"item_id": item_id}, files={"file": ("f.png", _png(), "image/png")}).status_code == 403
+
+
+def _receipt(client: TestClient, loc: str, lines: list[dict], **extra) -> dict:
+    response = client.post("/inventory/receipts", headers=PAIOL, json={"origin": "compra", "location_id": loc, "lines": lines, **extra})
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+def test_permanente_vira_unidade_nova_por_peca(client: TestClient) -> None:
+    template_id, loc = _item(client, quantity=1, item_type="permanent_component", name=f"Bateria {uuid.uuid4().hex[:6]}")
+    template = client.get(f"/inventory/items/{template_id}", headers=PAIOL).json()
+
+    body = _receipt(client, loc, [{"item_id": template_id, "quantity": 2}], invoice_number="4521")
+    units = body["items"]
+    assert len(units) == 2 and template_id not in {unit["id"] for unit in units}
+    assert {unit["name"] for unit in units} == {template["name"]}
+    assert len({unit["patrimony_number"] for unit in units} | {template["patrimony_number"]}) == 3
+    assert all(unit["stock_total"] == 1 and unit["invoice_number"] == "4521" for unit in units)
+    assert [movement["quantity"] for movement in body["movements"]] == [1, 1]
+    assert client.get(f"/inventory/items/{template_id}", headers=PAIOL).json()["stock_total"] == 1
+
+
+def test_permanente_recem_cadastrado_e_a_primeira_peca(client: TestClient) -> None:
+    fresh_id, loc = _item(client, quantity=0, item_type="permanent_component")
+    body = _receipt(client, loc, [{"item_id": fresh_id, "quantity": 2}])
+    assert [unit["id"] == fresh_id for unit in body["items"]] == [True, False]
+    assert all(unit["stock_total"] == 1 for unit in body["items"])
+
+
+def test_nota_fica_guardada_e_baixa_pelo_movimento(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    item_id, loc = _item(client, quantity=0)
+    monkeypatch.setattr(receipts, "read_invoice", lambda files: InvoiceRead(number="77", lines=[{"description": "X", "quantity": 1}]))
+    page = _png()
+    invoice_id = client.post("/inventory/receipts/invoice/read", headers=PAIOL, files={"files": ("nf-77.png", page, "image/png")}).json()["invoice_id"]
+
+    body = _receipt(client, loc, [{"item_id": item_id, "quantity": 1}], invoice_id=invoice_id)
+    assert body["movements"][0]["invoice_id"] == invoice_id
+
+    listed = client.get(f"/inventory/receipts/invoices/{invoice_id}/files", headers=REQUESTER)
+    assert listed.status_code == 200, listed.text
+    [entry] = listed.json()["items"]
+    download = client.get(entry["download_path"], headers=REQUESTER)
+    assert download.status_code == 200 and download.content == page
+    assert "attachment" in download.headers["content-disposition"]
+    assert client.get(f"/inventory/receipts/invoices/{uuid.uuid4()}/files", headers=REQUESTER).json()["total"] == 0

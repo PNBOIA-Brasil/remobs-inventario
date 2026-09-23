@@ -254,6 +254,7 @@ async def serialize_movement(session: AsyncSession, movement: StockMovement) -> 
         "status": movement.status,
         "reason": movement.reason,
         "decision_reason": movement.decision_reason,
+        "invoice_id": movement.invoice_id,
         "created_at": movement.created_at,
         "approved_at": movement.approved_at,
     }

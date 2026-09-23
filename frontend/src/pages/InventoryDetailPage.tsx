@@ -142,6 +142,16 @@ export default function InventoryDetailPage() {
     }
   }
 
+  async function handleInvoiceDownload(invoiceId: string) {
+    try {
+      const count = await inventoryService.downloadInvoice(invoiceId);
+      if (count) showSuccess("Download da nota fiscal iniciado.");
+      else showError("Arquivo da nota fiscal não encontrado.");
+    } catch {
+      showError("Não foi possível baixar a nota fiscal.");
+    }
+  }
+
   async function handleDelete(file: EntityFile) {
     if (!id || !canUpdate) return;
     const confirmed = window.confirm(`Remover o anexo "${file.original_name}"?`);
@@ -392,7 +402,14 @@ export default function InventoryDetailPage() {
                   {movementTypeLabel(movement.movement_type)}: {movement.quantity} {item.unit} de {movement.from_location_name || "origem"}
                   {movement.to_location_name ? ` para ${movement.to_location_name}` : ""}
                 </Typography>
-                <StatusChip status={movement.status} />
+                <Stack direction="row" alignItems="center" gap={1}>
+                  {movement.invoice_id && (
+                    <Button size="small" startIcon={<DownloadIcon />} onClick={() => handleInvoiceDownload(movement.invoice_id!)}>
+                      Nota fiscal
+                    </Button>
+                  )}
+                  <StatusChip status={movement.status} />
+                </Stack>
               </Stack>
             ))}
             {history?.audit_logs.slice(0, 8).map((log) => (

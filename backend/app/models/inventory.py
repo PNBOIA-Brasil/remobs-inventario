@@ -115,6 +115,8 @@ class StockMovement(Base):
         ForeignKey(table_ref("withdrawal_lines")),
         nullable=True,
     )
+    # Nota fiscal da entrada: arquivos em entity_files (entity_type = "invoice", entity_id = este id).
+    invoice_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

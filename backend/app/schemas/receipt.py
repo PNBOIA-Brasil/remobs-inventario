@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from app.schemas.inventory import StockMovementRead
+from app.schemas.inventory import InventoryItemRead, StockMovementRead
 
 
 class ReceiptLineCreate(BaseModel):
@@ -23,12 +23,15 @@ class ReceiptCreate(BaseModel):
     notes: str | None = None
     lines: list[ReceiptLineCreate] = Field(min_length=1)
     invoice_id: uuid.UUID | None = None
+    invoice_number: str | None = Field(default=None, max_length=160)
     supplier_cnpj: str | None = Field(default=None, max_length=32)
 
 
 class ReceiptRead(BaseModel):
     movements: list[StockMovementRead]
     total_quantity: int
+    # Itens que receberam saldo; permanente traz cada unidade nova (para imprimir etiquetas).
+    items: list[InventoryItemRead]
 
 
 class InvoiceLine(BaseModel):

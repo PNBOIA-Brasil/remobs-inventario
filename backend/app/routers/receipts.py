@@ -4,16 +4,18 @@ import asyncio
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile, status
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_async_session
 from app.core.errors import AppError
-from app.core.permissions import require_any_permission
+from app.core.permissions import require_any_permission, require_permissions
 from app.core.security import AuthUser
-from app.schemas.file import EntityFileRead
+from app.schemas.file import EntityFileListRead, EntityFileRead
 from app.schemas.receipt import InvoiceReadResponse, ReceiptCreate, ReceiptRead
-from app.services.file_service import attach_upload
-from app.services.inventory_service import get_item_or_404, serialize_movement
+from app.services import file_storage
+from app.services.file_service import attach_upload, get_entity_file_or_404, list_entity_files
+from app.services.inventory_service import get_item_or_404, serialize_items_bulk, serialize_movement
 from app.services.invoice_reader import read_invoice, suggest_items
 from app.services.receipt_service import register_receipt
 
@@ -29,11 +31,15 @@ async def create_receipt(
     user: AuthUser = Depends(require_any_permission(RECEIPT_PERMISSIONS)),
     session: AsyncSession = Depends(get_async_session),
 ) -> dict:
-    movements = await register_receipt(session, user=user, payload=payload)
+    movements, received = await register_receipt(session, user=user, payload=payload)
     await session.commit()
+    items = list({item.id: item for item in received}.values())
+    for item in items:
+        await session.refresh(item)  # updated_at é gerado no banco e expira no flush.
     return {
         "movements": [await serialize_movement(session, movement) for movement in movements],
         "total_quantity": sum(movement.quantity for movement in movements),
+        "items": await serialize_items_bulk(session, items),
     }
 
 
@@ -91,3 +97,30 @@ async def upload_receipt_photo(
     )
     await session.commit()
     return result
+
+
+@router.get("/receipts/invoices/{invoice_id}/files", response_model=EntityFileListRead)
+async def list_invoice_files(
+    invoice_id: uuid.UUID,
+    user: AuthUser = Depends(require_permissions(["inventory:item:read"])),
+    session: AsyncSession = Depends(get_async_session),
+) -> dict:
+    """Páginas da nota fiscal guardadas no recebimento (S3 em produção)."""
+    items = await list_entity_files(session, entity_type="invoice", entity_id=str(invoice_id))
+    for entry in items:
+        entry["download_path"] = f"/inventory/receipts/invoices/{invoice_id}/files/{entry['id']}/content"
+    return {"items": items, "total": len(items)}
+
+
+@router.get("/receipts/invoices/{invoice_id}/files/{entity_file_id}/content")
+async def download_invoice_file(
+    invoice_id: uuid.UUID,
+    entity_file_id: uuid.UUID,
+    user: AuthUser = Depends(require_permissions(["inventory:item:read"])),
+    session: AsyncSession = Depends(get_async_session),
+) -> Response:
+    _entity_file, file_meta = await get_entity_file_or_404(
+        session, entity_type="invoice", entity_id=str(invoice_id), entity_file_id=entity_file_id
+    )
+    headers = {"Content-Disposition": f'attachment; filename="{file_meta.original_name}"'}
+    return Response(content=file_storage.read_bytes(file_meta.storage_key), media_type=file_meta.mime_type, headers=headers)

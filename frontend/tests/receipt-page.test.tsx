@@ -27,7 +27,7 @@ describe("entrada de material", () => {
       total: 1,
     });
     const createItem = vi.spyOn(inventoryService, "createItem").mockResolvedValue(created);
-    const register = vi.spyOn(inventoryService, "registerReceipt").mockResolvedValue({ movements: [], total_quantity: 10 });
+    const register = vi.spyOn(inventoryService, "registerReceipt").mockResolvedValue({ movements: [], total_quantity: 10, items: [] });
 
     renderWithProviders(
       <MemoryRouter initialEntries={["/app/receipts/new"]}>

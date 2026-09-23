@@ -153,7 +153,7 @@ async def known_supplier_codes(session: AsyncSession, cnpj: str | None) -> dict[
         meta = meta or {}
         code = meta.get("supplier_code")
         if code and re.sub(r"\D", "", meta.get("supplier_cnpj") or "") == digits:
-            mapping.setdefault(str(code).strip(), entity_id)
+            mapping.setdefault(str(code).strip(), meta.get("linked_item_id") or entity_id)
     return mapping
 
 

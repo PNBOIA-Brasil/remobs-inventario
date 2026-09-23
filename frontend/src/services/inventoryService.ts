@@ -61,7 +61,24 @@ export interface ReceiptPayload {
   notes?: string;
   lines: Array<{ item_id: string; quantity: number; supplier_code?: string }>;
   invoice_id?: string;
+  invoice_number?: string;
   supplier_cnpj?: string;
+}
+
+export interface ReceiptResult {
+  movements: Movement[];
+  total_quantity: number;
+  /** Itens que receberam saldo; permanente traz cada unidade nova. */
+  items: InventoryItem[];
+}
+
+export function saveBlob(blob: Blob, name: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = name;
+  anchor.click();
+  URL.revokeObjectURL(url);
 }
 
 export interface InvoiceLine {
@@ -298,6 +315,16 @@ export const inventoryService = {
     return response.data;
   },
 
+  /** Baixa todas as páginas guardadas da nota fiscal; devolve quantos arquivos foram baixados. */
+  async downloadInvoice(invoiceId: string): Promise<number> {
+    const listed = await inventoryApi.get<ApiList<EntityFile>>(`/inventory/receipts/invoices/${invoiceId}/files`);
+    for (const file of listed.data.items) {
+      const content = await inventoryApi.get<Blob>(file.download_path, { responseType: "blob" });
+      saveBlob(content.data, file.original_name);
+    }
+    return listed.data.items.length;
+  },
+
   async uploadReceiptPhoto(itemId: string, file: File): Promise<EntityFile> {
     const formData = new FormData();
     formData.append("item_id", itemId);
@@ -306,8 +333,8 @@ export const inventoryService = {
     return response.data;
   },
 
-  async registerReceipt(payload: ReceiptPayload): Promise<{ movements: Movement[]; total_quantity: number }> {
-    const response = await inventoryApi.post<{ movements: Movement[]; total_quantity: number }>("/inventory/receipts", payload);
+  async registerReceipt(payload: ReceiptPayload): Promise<ReceiptResult> {
+    const response = await inventoryApi.post<ReceiptResult>("/inventory/receipts", payload);
     return response.data;
   },
 

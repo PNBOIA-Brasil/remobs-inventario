@@ -69,3 +69,17 @@ Deploy autorizado pelo usuário em 2026-09-23:
 | Amplify | app `d1oidnxd2f4saq`, branch `prod`, job `47` `SUCCEED`, bundle `index-CQS0u9we.js`, `sw.js` `v23`, `/app/receipts/invoice` 200 |
 
 Sem migração de banco. Rollback: serviço ECS de volta para `remobs-inventario-backend:18` e republicação do job 46 no Amplify. As políticas IAM podem ficar; sem elas, só a leitura da nota falha (erro 502 tratado na tela).
+
+## Segunda etapa — unidade por peça e download da nota
+
+Pedido do usuário após a primeira publicação: permanente sempre cadastra uma unidade nova por peça, e a nota fiscal fica guardada no S3 e pode ser baixada.
+
+Decisões:
+
+- **Permanente no backend.** Em toda entrada (por nota ou manual), cada peça de um permanente vira um item novo com patrimônio próprio, copiando nome, categoria, marca, modelo, unidade e descrição do item informado; o item informado não recebe saldo. Um permanente cadastrado e nunca movimentado, sem saldo, é usado como a primeira peça, para o cadastro rápido não deixar item vazio. Cada unidade tem o seu movimento de 1 unidade. O vínculo com o código do fornecedor aponta para o item informado (`linked_item_id`).
+- **Resposta da entrada** traz `items` (unidades novas incluídas), usados para as etiquetas e para anexar a foto a cada unidade.
+- **Nota no S3.** A produção já usa `REMOBS_STORAGE_BACKEND=s3` (bucket `inventario-remobs`, prefixo `remobs-inventario/invoice/<id>/`). Migração `0008_movement_invoice` adiciona `stock_movements.invoice_id`. Novas rotas `GET /inventory/receipts/invoices/{id}/files` e `.../files/{file_id}/content` (permissão `inventory:item:read`).
+- **Download.** Botão "Baixar nota fiscal" na tela de conclusão e "Nota fiscal" em cada entrada com nota no histórico do item.
+- `invoice_number` na entrada preenche o número da nota nas unidades novas.
+
+Validações: backend com 47 testes (unidade por peça, primeira peça recém-cadastrada, nota guardada e baixada pelo movimento); migração 0008 com upgrade, downgrade e upgrade numa cópia do `dev.sqlite`; frontend com 68 testes (novo `invoice-receipt-page.test.tsx`: unidade por peça, foto em cada unidade e payload da entrada) e build sem erro. O teste de cache do service worker, que esperava `v22`, foi corrigido: na primeira publicação a suíte do frontend não foi executada. Cache PWA `remobs-inventario-v24`.

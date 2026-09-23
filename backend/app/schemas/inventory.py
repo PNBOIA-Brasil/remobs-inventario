@@ -132,6 +132,7 @@ class StockMovementRead(BaseModel):
     status: str
     reason: str
     decision_reason: str | None
+    invoice_id: uuid.UUID | None = None
     created_at: datetime
     approved_at: datetime | None
 
