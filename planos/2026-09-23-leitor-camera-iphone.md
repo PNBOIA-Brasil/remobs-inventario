@@ -25,4 +25,14 @@ Permitir a leitura de QR Code e códigos de barras pela câmera no iPhone (Safar
 
 ## Resultado
 
-Implementado e validado localmente. Commit e deploy mediante confirmação do usuário.
+Commit `c94bcea`. Deploy autorizado pelo usuário em 2026-09-23 (profile `aws-remobs`, `sa-east-1`).
+
+| Etapa | Resultado |
+| :--- | :--- |
+| Job `42` | `SUCCEED`, mas o `.wasm` voltava como `index.html` (200, `text/html`) |
+| Causa | A regra SPA do Amplify reescrevia para `/index.html` toda extensão fora da lista, e `wasm` não constava nela |
+| Regra | `update-app` com `wasm` incluído na lista, autorizado pelo usuário; o restante da regra ficou igual |
+| Job `43` | Mesmo pacote republicado para limpar o cache da CDN; `SUCCEED` |
+| Verificação | `.wasm` servido como `application/wasm` (1.093.289 bytes); QR Code da retirada decodificado em produção pelo leitor zxing-wasm, em navegador sem `BarcodeDetector` |
+
+Rollback: republicação do job 41 no Amplify. Pendente: teste com a câmera de um iPhone.

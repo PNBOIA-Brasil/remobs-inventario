@@ -2,6 +2,12 @@
 
 ## [2026-09-23]
 
+### Publicado — leitura pela câmera no iPhone
+- Produção: somente frontend, Amplify jobs `42` e `43` `SUCCEED`, bundle `index-B93GDWZf.js`, cache PWA `v19`. Backend e banco sem alteração.
+- Regra de reescrita SPA do Amplify ajustada para incluir `wasm` entre as extensões servidas como arquivo; antes, o `.wasm` do leitor era trocado pelo `index.html`. O job `43` republicou o mesmo pacote para limpar o cache da CDN.
+- Verificado em produção: `.wasm` servido como `application/wasm` e QR Code da retirada decodificado pelo leitor zxing-wasm em navegador sem API nativa.
+- Rollback: republicar o job 41 no Amplify; a regra com `wasm` pode permanecer.
+
 ### Corrigido — leitura pela câmera no iPhone
 - A tela Escanear passa a ler QR Code e códigos de barras pela câmera no iPhone (Safari e Chrome) e no Chrome desktop do Windows, que não têm a API nativa `BarcodeDetector`. Nesses navegadores, o leitor zxing-wasm é carregado sob demanda do próprio app, sem CDN externa; onde há API nativa, nada muda.
 - A câmera é liberada ao sair da tela antes de a permissão ser concedida, e leituras sobrepostas são evitadas.
