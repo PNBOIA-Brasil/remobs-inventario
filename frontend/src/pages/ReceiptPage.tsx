@@ -51,6 +51,7 @@ export default function ReceiptPage() {
   const [lines, setLines] = useState<ReceiptLine[]>([emptyLine()]);
   const [sending, setSending] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
+  const [quickSaving, setQuickSaving] = useState(false);
   const [quick, setQuick] = useState({ name: "", itemType: "consumable" as "consumable" | "permanent_component", unit: "un" });
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
@@ -83,6 +84,7 @@ export default function ReceiptPage() {
 
   async function createQuickItem() {
     const locationName = locations.find((entry) => entry.id === locationId)?.name;
+    setQuickSaving(true);
     try {
       const created = await inventoryService.createItem({
         item_type: quick.itemType,
@@ -102,6 +104,8 @@ export default function ReceiptPage() {
       showSuccess("Item cadastrado e incluído na entrada.");
     } catch {
       showError("Não foi possível cadastrar o item.");
+    } finally {
+      setQuickSaving(false);
     }
   }
 
@@ -203,14 +207,14 @@ export default function ReceiptPage() {
             </Stack>
             <TextField label="Observação" value={notes} onChange={(event) => setNotes(event.target.value)} multiline minRows={2} />
             {validationError && <Alert severity="warning">{validationError}</Alert>}
-            <Button type="submit" variant="contained" disabled={Boolean(validationError) || sending}>
+            <Button type="submit" variant="contained" disabled={Boolean(validationError)} loading={sending} loadingPosition="start">
               Confirmar entrada
             </Button>
           </Stack>
         </CardContent>
       </Card>
 
-      <Dialog open={quickOpen} onClose={() => setQuickOpen(false)} fullWidth>
+      <Dialog open={quickOpen} onClose={quickSaving ? undefined : () => setQuickOpen(false)} fullWidth>
         <DialogTitle>Cadastro rápido</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
@@ -231,8 +235,8 @@ export default function ReceiptPage() {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setQuickOpen(false)}>Cancelar</Button>
-          <Button variant="contained" disabled={!quick.name.trim() || !quick.unit.trim()} onClick={createQuickItem}>
+          <Button onClick={() => setQuickOpen(false)} disabled={quickSaving}>Cancelar</Button>
+          <Button variant="contained" disabled={!quick.name.trim() || !quick.unit.trim()} loading={quickSaving} loadingPosition="start" onClick={createQuickItem}>
             Cadastrar e incluir
           </Button>
         </DialogActions>

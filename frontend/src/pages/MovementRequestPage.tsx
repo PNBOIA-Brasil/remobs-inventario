@@ -162,6 +162,7 @@ export default function MovementRequestPage() {
   const [locations, setLocations] = useState<InventoryLocation[]>([]);
   const [draft, setDraft] = useState<DraftState>(readInitialDraft);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [sending, setSending] = useState(false);
   const [loadingItems, setLoadingItems] = useState(true);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const navigate = useNavigate();
@@ -262,7 +263,8 @@ export default function MovementRequestPage() {
   }
 
   async function sendRequest() {
-    if (validationError) return;
+    if (validationError || sending) return;
+    setSending(true);
     try {
       await inventoryService.requestWithdrawal({
         reason: [draft.reason.trim(), draft.evidenceNote && `Evidência: ${draft.evidenceNote.trim()}`].filter(Boolean).join("\n"),
@@ -281,6 +283,8 @@ export default function MovementRequestPage() {
       navigate("/app/movements");
     } catch {
       showError("Não foi possível solicitar a retirada.");
+    } finally {
+      setSending(false);
     }
   }
 
@@ -429,7 +433,7 @@ export default function MovementRequestPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} fullWidth>
+      <Dialog open={confirmOpen} onClose={sending ? undefined : () => setConfirmOpen(false)} fullWidth>
         <DialogTitle>Confirmar retirada</DialogTitle>
         <DialogContent>
           <Stack spacing={1}>
@@ -444,8 +448,8 @@ export default function MovementRequestPage() {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmOpen(false)}>Cancelar</Button>
-          <Button variant="contained" onClick={sendRequest}>
+          <Button onClick={() => setConfirmOpen(false)} disabled={sending}>Cancelar</Button>
+          <Button variant="contained" loading={sending} loadingPosition="start" onClick={sendRequest}>
             Confirmar
           </Button>
         </DialogActions>

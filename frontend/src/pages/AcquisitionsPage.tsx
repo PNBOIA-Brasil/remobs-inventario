@@ -51,6 +51,7 @@ export default function AcquisitionsPage() {
   const [decision, setDecision] = useState<Decision | null>(null);
   const [form, setForm] = useState({ reason: "", processNumber: "", expectedDate: "" });
   const [creating, setCreating] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [draft, setDraft] = useState({ item: null as InventoryItem | null, quantity: "1", priority: "media" as AcquisitionPriority, reason: "" });
   const navigate = useNavigate();
@@ -82,6 +83,7 @@ export default function AcquisitionsPage() {
 
   async function confirmDecision() {
     if (!decision) return;
+    setSaving(true);
     try {
       await inventoryService.updateAcquisition(decision.need.id, {
         status: decision.status,
@@ -94,16 +96,21 @@ export default function AcquisitionsPage() {
       load();
     } catch {
       showError("Não foi possível atualizar a necessidade.");
+    } finally {
+      setSaving(false);
     }
   }
 
   async function suggest() {
+    setSaving(true);
     try {
       const result = await inventoryService.suggestAcquisitions();
       showSuccess(result.created ? `${result.created} sugestão(ões) nova(s).` : "Nenhum item novo abaixo do mínimo.");
       load();
     } catch {
       showError("Não foi possível gerar sugestões.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -115,6 +122,7 @@ export default function AcquisitionsPage() {
 
   async function create() {
     if (!draft.item) return;
+    setSaving(true);
     try {
       await inventoryService.createAcquisition({
         item_id: draft.item.id,
@@ -128,6 +136,8 @@ export default function AcquisitionsPage() {
       load();
     } catch {
       showError("Não foi possível abrir a necessidade.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -142,7 +152,7 @@ export default function AcquisitionsPage() {
         </Stack>
         {canManage && (
           <Stack direction="row" spacing={1} alignItems="flex-start">
-            <Button variant="outlined" onClick={suggest}>Gerar sugestões</Button>
+            <Button variant="outlined" loading={saving} loadingPosition="start" onClick={suggest}>Gerar sugestões</Button>
             <Button variant="contained" onClick={openCreate}>Nova necessidade</Button>
           </Stack>
         )}
@@ -209,7 +219,7 @@ export default function AcquisitionsPage() {
         </Card>
       ))}
 
-      <Dialog open={Boolean(decision)} onClose={() => setDecision(null)} fullWidth>
+      <Dialog open={Boolean(decision)} onClose={saving ? undefined : () => setDecision(null)} fullWidth>
         <DialogTitle>{decision?.title}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
@@ -237,14 +247,14 @@ export default function AcquisitionsPage() {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDecision(null)}>Voltar</Button>
-          <Button variant="contained" disabled={form.reason.trim().length < 3} onClick={confirmDecision}>
+          <Button onClick={() => setDecision(null)} disabled={saving}>Voltar</Button>
+          <Button variant="contained" disabled={form.reason.trim().length < 3} loading={saving} loadingPosition="start" onClick={confirmDecision}>
             Confirmar
           </Button>
         </DialogActions>
       </Dialog>
 
-      <Dialog open={creating} onClose={() => setCreating(false)} fullWidth>
+      <Dialog open={creating} onClose={saving ? undefined : () => setCreating(false)} fullWidth>
         <DialogTitle>Nova necessidade</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
@@ -266,8 +276,8 @@ export default function AcquisitionsPage() {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCreating(false)}>Cancelar</Button>
-          <Button variant="contained" disabled={!draft.item || !(Number(draft.quantity) > 0) || draft.reason.trim().length < 3} onClick={create}>
+          <Button onClick={() => setCreating(false)} disabled={saving}>Cancelar</Button>
+          <Button variant="contained" disabled={!draft.item || !(Number(draft.quantity) > 0) || draft.reason.trim().length < 3} loading={saving} loadingPosition="start" onClick={create}>
             Abrir necessidade
           </Button>
         </DialogActions>

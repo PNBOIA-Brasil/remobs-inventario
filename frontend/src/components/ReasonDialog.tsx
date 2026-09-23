@@ -12,20 +12,30 @@ interface ReasonDialogProps {
   title: string;
   confirmLabel: string;
   onClose: () => void;
-  onConfirm: (reason: string) => void;
+  onConfirm: (reason: string) => Promise<void> | void;
 }
 
 export default function ReasonDialog({ open, title, confirmLabel, onClose, onConfirm }: ReasonDialogProps) {
   const [reason, setReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (open) setReason("");
   }, [open]);
 
+  async function handleConfirm() {
+    setSubmitting(true);
+    try {
+      await onConfirm(reason.trim());
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   const invalid = reason.trim().length < 3;
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth>
+    <Dialog open={open} onClose={submitting ? undefined : onClose} fullWidth>
       <DialogTitle>{title}</DialogTitle>
       <DialogContent>
         <TextField
@@ -38,12 +48,13 @@ export default function ReasonDialog({ open, title, confirmLabel, onClose, onCon
           minRows={2}
           fullWidth
           required
+          disabled={submitting}
         />
         {invalid && <Alert severity="warning" sx={{ mt: 2 }}>Informe um motivo com pelo menos 3 caracteres.</Alert>}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancelar</Button>
-        <Button variant="contained" disabled={invalid} onClick={() => onConfirm(reason.trim())}>
+        <Button onClick={onClose} disabled={submitting}>Cancelar</Button>
+        <Button variant="contained" disabled={invalid} loading={submitting} loadingPosition="start" onClick={handleConfirm}>
           {confirmLabel}
         </Button>
       </DialogActions>

@@ -2,6 +2,11 @@
 
 ## [2026-09-23]
 
+### Corrigido — feedback nos diálogos de pedido
+- Os diálogos de confirmação dos pedidos (solicitar retirada, aprovar, recusar, entregar, aceitar/recusar custódia, devolução e baixa) mostram carregamento no botão de confirmar enquanto a requisição está em andamento. Confirmar, Cancelar, o campo de motivo e o fechamento por clique fora ou Esc ficam bloqueados até a resposta, evitando envio duplicado e a impressão de que nada aconteceu.
+- Mesmo comportamento em Aquisições (decisão, nova necessidade e gerar sugestões) e na Entrada de material (cadastro rápido e registrar entrada).
+- Cache PWA `remobs-inventario-v16`.
+
 ### Publicado — admin executa todo o fluxo
 - Produção: imagem `prod-2026-09-23-admin-fluxo`, task definition `remobs-inventario-backend:17` (`COMPLETED`), Amplify job `38` `SUCCEED`, cache PWA `v15`.
 
