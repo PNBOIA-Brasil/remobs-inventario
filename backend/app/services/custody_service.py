@@ -15,8 +15,12 @@ from app.models.platform import Platform
 from app.services.audit_service import log_action
 from app.services.inventory_service import ensure_stock_alert, get_balance, get_item_or_404, get_or_create_balance
 
+# Aprovar/recusar: paiol ou gestor do inventário (admin já tem movement:approve).
+APPROVE_PERMISSIONS = ["inventory:withdrawal:approve", "inventory:movement:approve"]
+
 DECISION_PERMISSIONS = (
     "inventory:withdrawal:approve",
+    "inventory:movement:approve",
     "inventory:withdrawal:deliver",
     "inventory:return:decide",
     "inventory:writeoff:decide",

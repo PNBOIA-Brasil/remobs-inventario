@@ -17,6 +17,7 @@ from app.schemas.custody import (
     WithdrawalOrderRead,
 )
 from app.services.custody_service import (
+    APPROVE_PERMISSIONS,
     DECISION_PERMISSIONS,
     approve_withdrawal,
     decide_custody_event,
@@ -92,7 +93,7 @@ async def read_withdrawal_order(
 async def approve_withdrawal_order(
     order_id: uuid.UUID,
     payload: WithdrawalApproval,
-    user: AuthUser = Depends(require_permissions(["inventory:withdrawal:approve"])),
+    user: AuthUser = Depends(require_any_permission(APPROVE_PERMISSIONS)),
     session: AsyncSession = Depends(get_async_session),
 ) -> dict:
     order = await approve_withdrawal(
@@ -111,7 +112,7 @@ async def approve_withdrawal_order(
 async def reject_withdrawal_order(
     order_id: uuid.UUID,
     payload: DecisionReason,
-    user: AuthUser = Depends(require_permissions(["inventory:withdrawal:approve"])),
+    user: AuthUser = Depends(require_any_permission(APPROVE_PERMISSIONS)),
     session: AsyncSession = Depends(get_async_session),
 ) -> dict:
     order = await reject_withdrawal(session, user=user, order_id=order_id, reason=payload.reason)

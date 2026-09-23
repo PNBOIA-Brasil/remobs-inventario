@@ -274,3 +274,29 @@ def test_busca_de_itens_acha_por_patrimonio_e_serie(client: TestClient) -> None:
     for code in (patrimonio, serie.lower()):
         found = client.get("/inventory/items", headers=REQUESTER, params={"q": code}).json()["items"]
         assert [item["id"] for item in found] == [item_id]
+
+
+def test_admin_do_inventario_ve_e_aprova_pedido_de_outro_mas_nao_entrega(client: TestClient) -> None:
+    gestor = _bearer(
+        ["inventory:item:read", "inventory:movement:approve", "inventory:withdrawal:request"],
+        user_id=24,
+        username="gestor",
+        roles=["inventario-admin"],
+    )
+    a_id, a_loc = _item(client, quantity=3)
+    order = _order(client, [(a_id, a_loc, 1)])
+
+    listed = client.get("/inventory/withdrawals", headers=gestor).json()["items"]
+    assert any(item["id"] == order["id"] for item in listed)
+
+    approved = client.post(f"/inventory/withdrawals/{order['id']}/approve", headers=gestor, json={"reason": "Aprovado pela gestão."})
+    assert approved.status_code == 200, approved.text
+    assert approved.json()["status"] == "approved"
+    assert client.post(f"/inventory/withdrawals/{order['id']}/deliver", headers=gestor, json={"reason": "Tentativa."}).status_code == 403
+
+    own = client.post(
+        "/inventory/withdrawals",
+        headers=gestor,
+        json={"reason": "Pedido do gestor.", "lines": [{"item_id": a_id, "from_location_id": a_loc, "quantity": 1}]},
+    ).json()
+    assert client.post(f"/inventory/withdrawals/{own['id']}/reject", headers=gestor, json={"reason": "Próprio."}).status_code == 403

@@ -14,7 +14,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import LoadingState from "../components/LoadingState";
 import ReasonDialog from "../components/ReasonDialog";
 import StatusChip from "../components/StatusChip";
-import { PAIOL_PERMISSIONS, REQUEST_PERMISSIONS } from "../navigation";
+import { APPROVE_PERMISSIONS, PAIOL_PERMISSIONS, REQUEST_PERMISSIONS } from "../navigation";
 import { inventoryService } from "../services/inventoryService";
 import { useAuth } from "../state/AuthContext";
 import { useSnackbar } from "../state/SnackbarContext";
@@ -169,7 +169,7 @@ export default function MovementsPage() {
               {hasPendingEvent(order) && <Alert severity="warning">Devolução ou baixa aguardando conferência.</Alert>}
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                 <Button onClick={() => navigate(`/app/withdrawals/${order.id}`)}>Abrir pedido</Button>
-                {order.status === "pending_approval" && hasPermission("inventory:withdrawal:approve") && canDecide(order) && (
+                {order.status === "pending_approval" && hasAnyPermission(...APPROVE_PERMISSIONS) && canDecide(order) && (
                   <>
                     <Button variant="contained" onClick={() => setPending({ kind: "withdrawal", id: order.id, action: "approve" })}>Aprovar</Button>
                     <Button variant="outlined" color="error" onClick={() => setPending({ kind: "withdrawal", id: order.id, action: "reject" })}>Recusar</Button>

@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import LoadingState from "../components/LoadingState";
+import { APPROVE_PERMISSIONS } from "../navigation";
 import ReasonDialog from "../components/ReasonDialog";
 import StatusChip from "../components/StatusChip";
 import { inventoryService } from "../services/inventoryService";
@@ -37,7 +38,7 @@ export default function WithdrawalDetailPage() {
   const [quantities, setQuantities] = useState<Record<string, string>>({});
   const [approveQty, setApproveQty] = useState<Record<string, string>>({});
   const navigate = useNavigate();
-  const { hasPermission, user } = useAuth();
+  const { hasPermission, hasAnyPermission, user } = useAuth();
   const { showSuccess, showError } = useSnackbar();
 
   function load() {
@@ -117,7 +118,7 @@ export default function WithdrawalDetailPage() {
             {order.delivered_by_username && (
               <Typography variant="body2">Entrega por {order.delivered_by_username}: {order.delivery_reason}</Typography>
             )}
-            {order.status === "pending_approval" && hasPermission("inventory:withdrawal:approve") && canDecide && (
+            {order.status === "pending_approval" && hasAnyPermission(...APPROVE_PERMISSIONS) && canDecide && (
               <Stack direction="row" spacing={1}>
                 <Button variant="contained" onClick={() => setDecision({ kind: "approve" })}>Aprovar</Button>
                 <Button variant="outlined" color="error" onClick={() => setDecision({ kind: "reject" })}>Recusar</Button>
@@ -145,7 +146,7 @@ export default function WithdrawalDetailPage() {
                   Pedido {line.quantity} • em posse {line.custody_quantity} • devolvido {line.returned_quantity} • baixado {line.written_off_quantity}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">Origem: {line.from_location_name}</Typography>
-                {order.status === "pending_approval" && hasPermission("inventory:withdrawal:approve") && canDecide && (
+                {order.status === "pending_approval" && hasAnyPermission(...APPROVE_PERMISSIONS) && canDecide && (
                   <TextField
                     label={`Aprovar de ${line.item_name}`}
                     helperText={`Pedido ${line.quantity}. Use 0 para recusar este material.`}

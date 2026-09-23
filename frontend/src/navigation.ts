@@ -26,7 +26,8 @@ export interface NavigationItem {
 
 export const REQUEST_PERMISSIONS = ["inventory:withdrawal:request", "inventory:movement:request"];
 export const RECEIPT_PERMISSIONS = ["inventory:item:update", "inventory:withdrawal:deliver"];
-export const PAIOL_PERMISSIONS = ["inventory:withdrawal:approve", "inventory:withdrawal:deliver", "inventory:return:decide", "inventory:writeoff:decide"];
+export const APPROVE_PERMISSIONS = ["inventory:withdrawal:approve", "inventory:movement:approve"];
+export const PAIOL_PERMISSIONS = ["inventory:withdrawal:approve", "inventory:movement:approve", "inventory:withdrawal:deliver", "inventory:return:decide", "inventory:writeoff:decide"];
 
 export const navigationItems: NavigationItem[] = [
   { label: "Início", path: "/app/home", icon: DashboardIcon, permissions: [], group: "Operação", bottom: true },
