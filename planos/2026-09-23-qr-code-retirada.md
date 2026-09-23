@@ -35,3 +35,12 @@ Exibir o QR Code e o código da retirada logo após a solicitação, enquanto o 
 ## Resultado
 
 Implementado. Publicação registrada no `CHANGELOG.md`.
+
+## Publicação
+
+| Item | Valor |
+|------|-------|
+| Amplify | app `d1oidnxd2f4saq`, branch `prod`, job `40` `SUCCEED`, bundle `index-BVLoAyPa.js`, `sw.js` `v17` |
+| Backend e banco | sem alteração |
+
+Rollback: republicação do job 39 no Amplify.

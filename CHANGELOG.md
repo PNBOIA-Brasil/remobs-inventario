@@ -2,6 +2,9 @@
 
 ## [2026-09-23]
 
+### Publicado — QR Code da retirada
+- Produção: somente frontend, Amplify job `40` `SUCCEED`, bundle `index-BVLoAyPa.js`, cache PWA `v17`. Backend e banco sem alteração. Rollback: republicar o job 39 no Amplify.
+
 ### Adicionado — QR Code da retirada
 - Ao solicitar uma retirada, o usuário é levado ao pedido criado, que mostra o QR Code e o código curto da retirada (`RET-` + 8 primeiros caracteres do id) enquanto o pedido aguarda aprovação ou entrega. O QR abre o próprio pedido, agilizando a conferência no paiol. Há tela cheia para leitura, cópia do código e download em PNG. Funciona em desktop e mobile.
 - Nova dependência de frontend `qrcode.react`. Sem mudança no backend nem migração. Plano: `planos/2026-09-23-qr-code-retirada.md`.
