@@ -73,3 +73,13 @@ Regra: admin do inventário (`inventory:movement:approve` ou `*`) aprova, recusa
 - Cache PWA `remobs-inventario-v15`.
 
 Validação: backend 37 testes (fluxo completo do admin em pedido alheio e próprio, com histórico; paiol comum sem autoaprovação); frontend `tsc -b` e 54 testes.
+
+Publicado em 2026-09-23, autorizado pelo usuário. Commit `98f1167`.
+
+| Item | Valor |
+|------|-------|
+| Imagem ECR | `prod-2026-09-23-admin-fluxo` |
+| Task definition | `remobs-inventario-backend:17`, rollout `COMPLETED`, `healthz` 200 |
+| Amplify | job `38` `SUCCEED`, bundle `index-CFPY8poP.js`, `sw.js` `v15` |
+
+Rollback: serviço ECS para `remobs-inventario-backend:16` e republicação do job 37 no Amplify.

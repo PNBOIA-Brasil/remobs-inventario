@@ -2,6 +2,9 @@
 
 ## [2026-09-23]
 
+### Publicado — admin executa todo o fluxo
+- Produção: imagem `prod-2026-09-23-admin-fluxo`, task definition `remobs-inventario-backend:17` (`COMPLETED`), Amplify job `38` `SUCCEED`, cache PWA `v15`.
+
 ### Alterado — admin executa todo o fluxo
 - O admin do inventário (`inventory:movement:approve` ou `*`) aprova, entrega, registra devolução ou baixa por qualquer pessoa e decide essas solicitações, inclusive nos próprios pedidos. Todas as etapas ficam no histórico com ator, papéis e motivo. Paiol comum continua sem decidir o próprio pedido.
 - Cache PWA `remobs-inventario-v15`.
