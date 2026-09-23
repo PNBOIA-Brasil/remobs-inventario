@@ -96,5 +96,26 @@ describe("detalhe da retirada para o solicitante", () => {
     expect(screen.getByText(/Material entregue/)).toBeTruthy();
     expect(screen.getAllByRole("button", { name: "Devolver" })).toHaveLength(2);
     expect(screen.getAllByRole("button", { name: "Baixar" })).toHaveLength(1);
+    expect(screen.queryByText("QR Code da retirada")).toBeNull();
+  });
+
+  it("mostra o QR Code e o código enquanto o pedido aguarda entrega", async () => {
+    vi.spyOn(inventoryService, "getWithdrawal").mockResolvedValue({
+      ...order,
+      id: "8f3a9c2e-1111-4222-8333-444455556666",
+      status: "pending_approval",
+    });
+
+    renderWithProviders(
+      <MemoryRouter initialEntries={["/app/withdrawals/x"]}>
+        <Routes>
+          <Route path="/app/withdrawals/:id" element={<WithdrawalDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("QR Code da retirada")).toBeTruthy();
+    expect(screen.getByRole("img", { name: "QR Code da retirada RET-8F3A9C2E" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Tela cheia" })).toBeTruthy();
   });
 });

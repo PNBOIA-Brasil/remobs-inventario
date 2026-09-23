@@ -2,6 +2,11 @@
 
 ## [2026-09-23]
 
+### Adicionado — QR Code da retirada
+- Ao solicitar uma retirada, o usuário é levado ao pedido criado, que mostra o QR Code e o código curto da retirada (`RET-` + 8 primeiros caracteres do id) enquanto o pedido aguarda aprovação ou entrega. O QR abre o próprio pedido, agilizando a conferência no paiol. Há tela cheia para leitura, cópia do código e download em PNG. Funciona em desktop e mobile.
+- Nova dependência de frontend `qrcode.react`. Sem mudança no backend nem migração. Plano: `planos/2026-09-23-qr-code-retirada.md`.
+- Cache PWA `remobs-inventario-v17`.
+
 ### Corrigido — feedback nos diálogos de pedido
 - Os diálogos de confirmação dos pedidos (solicitar retirada, aprovar, recusar, entregar, aceitar/recusar custódia, devolução e baixa) mostram carregamento no botão de confirmar enquanto a requisição está em andamento. Confirmar, Cancelar, o campo de motivo e o fechamento por clique fora ou Esc ficam bloqueados até a resposta, evitando envio duplicado e a impressão de que nada aconteceu.
 - Mesmo comportamento em Aquisições (decisão, nova necessidade e gerar sugestões) e na Entrada de material (cadastro rápido e registrar entrada).

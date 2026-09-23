@@ -50,6 +50,11 @@ export function purposeLabel(order: Pick<WithdrawalOrder, "purpose" | "due_date"
   return "Consumo";
 }
 
+/** Código curto do pedido para exibir e ditar: "RET-" + 8 primeiros caracteres do UUID. */
+export function withdrawalCode(orderId: string): string {
+  return `RET-${orderId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8).toUpperCase()}`;
+}
+
 /** Empréstimo entregue, ainda com material em posse e prazo anterior a hoje. */
 export function isOverdue(order: WithdrawalOrder, today = new Date()): boolean {
   if (order.purpose !== "emprestimo" || !order.due_date || order.status !== "delivered") return false;

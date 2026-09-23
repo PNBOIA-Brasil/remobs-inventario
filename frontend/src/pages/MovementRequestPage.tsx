@@ -266,7 +266,7 @@ export default function MovementRequestPage() {
     if (validationError || sending) return;
     setSending(true);
     try {
-      await inventoryService.requestWithdrawal({
+      const created = await inventoryService.requestWithdrawal({
         reason: [draft.reason.trim(), draft.evidenceNote && `Evidência: ${draft.evidenceNote.trim()}`].filter(Boolean).join("\n"),
         lines: draft.lines.map((line) => ({
           item_id: line.itemId,
@@ -280,7 +280,8 @@ export default function MovementRequestPage() {
       localStorage.removeItem(draftKey);
       localStorage.removeItem(legacyDraftKey);
       showSuccess("Solicitação de retirada registrada.");
-      navigate("/app/movements");
+      // Abre o pedido criado para o solicitante já ver o QR Code da retirada.
+      navigate(`/app/withdrawals/${created.id}`);
     } catch {
       showError("Não foi possível solicitar a retirada.");
     } finally {

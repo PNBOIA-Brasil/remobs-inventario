@@ -12,11 +12,12 @@ import LoadingState from "../components/LoadingState";
 import { APPROVE_PERMISSIONS } from "../navigation";
 import ReasonDialog from "../components/ReasonDialog";
 import StatusChip from "../components/StatusChip";
+import WithdrawalQrCard from "../components/WithdrawalQrCard";
 import { inventoryService } from "../services/inventoryService";
 import { useAuth } from "../state/AuthContext";
 import { useSnackbar } from "../state/SnackbarContext";
 import type { CustodyEvent, WithdrawalLine, WithdrawalOrder } from "../types";
-import { auditActionLabel, isOverdue, purposeLabel } from "../withdrawalLabels";
+import { auditActionLabel, isOverdue, purposeLabel, withdrawalCode } from "../withdrawalLabels";
 
 type Decision =
   | { kind: "approve" | "reject" | "deliver" }
@@ -114,6 +115,7 @@ export default function WithdrawalDetailPage() {
               <Typography variant="h5">Pedido de retirada</Typography>
               <StatusChip status={order.status} />
             </Stack>
+            <Typography variant="body2" color="text.secondary">Código {withdrawalCode(order.id)}</Typography>
             <Typography>Solicitado por {order.requested_by_username}</Typography>
             <Typography variant="body2" fontWeight={700} color={isOverdue(order) ? "error.main" : undefined}>
               {purposeLabel(order)}
@@ -143,6 +145,8 @@ export default function WithdrawalDetailPage() {
           </Stack>
         </CardContent>
       </Card>
+
+      {(order.status === "pending_approval" || order.status === "approved") && <WithdrawalQrCard orderId={order.id} />}
 
       {order.lines.map((line) => {
         const waiting = pendingQuantity(order, line.id);
