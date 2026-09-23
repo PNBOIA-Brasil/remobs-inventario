@@ -2,6 +2,10 @@
 
 ## [2026-09-23]
 
+### Publicado — unidade nova por peça e download da nota fiscal
+- Produção: migração `0008_movement_invoice` aplicada, backend na task definition `remobs-inventario-backend:20` (imagem `prod-2026-09-23-nota-fiscal-unidades`) e frontend no Amplify job `48` `SUCCEED`, bundle `index-FYKvn8Jd.js`, cache PWA `v24`.
+- Rollback: ECS de volta para `remobs-inventario-backend:19` e republicação do job 47 no Amplify; a coluna `invoice_id` pode ficar.
+
 ### Alterado — permanente vira unidade nova por peça e nota fiscal para baixar
 - Na entrada de material (por nota fiscal ou manual), cada peça de um item permanente vira uma unidade nova, com número patrimonial e etiqueta próprios e o mesmo cadastro (nome, categoria, marca, modelo, unidade e descrição) do item informado, que não recebe saldo. Um permanente cadastrado e ainda sem movimento nem saldo é usado como a primeira peça.
 - No recebimento por nota, o item permanente mostra quantas unidades serão criadas, a foto vai para cada unidade nova e as etiquetas impressas são as das unidades.

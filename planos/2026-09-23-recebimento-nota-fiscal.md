@@ -83,3 +83,14 @@ Decisões:
 - `invoice_number` na entrada preenche o número da nota nas unidades novas.
 
 Validações: backend com 47 testes (unidade por peça, primeira peça recém-cadastrada, nota guardada e baixada pelo movimento); migração 0008 com upgrade, downgrade e upgrade numa cópia do `dev.sqlite`; frontend com 68 testes (novo `invoice-receipt-page.test.tsx`: unidade por peça, foto em cada unidade e payload da entrada) e build sem erro. O teste de cache do service worker, que esperava `v22`, foi corrigido: na primeira publicação a suíte do frontend não foi executada. Cache PWA `remobs-inventario-v24`.
+
+Publicação autorizada pelo usuário em 2026-09-23 (profile `aws-remobs`, conta `220790920077`, `sa-east-1`), commit `cb4b8f0`:
+
+| Etapa | Resultado |
+| :--- | :--- |
+| Migração | `0008_movement_invoice` aplicada no RDS de produção |
+| Imagem | `remobs-inventario-backend:prod-2026-09-23-nota-fiscal-unidades` no ECR |
+| ECS | task definition `remobs-inventario-backend:20` (cópia da `:19`, só a imagem trocada), rollout `COMPLETED`, `/healthz` 200, rotas de download da nota no OpenAPI e `401` sem token |
+| Amplify | job `48` `SUCCEED`, bundle `index-FYKvn8Jd.js`, `sw.js` `v24` |
+
+Rollback: ECS de volta para `remobs-inventario-backend:19` e republicação do job 47 no Amplify; a coluna `invoice_id` pode ficar (é opcional).
