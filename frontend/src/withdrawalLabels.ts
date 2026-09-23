@@ -50,9 +50,18 @@ export function purposeLabel(order: Pick<WithdrawalOrder, "purpose" | "due_date"
   return "Consumo";
 }
 
+function shortCode(prefix: string, id: string): string {
+  return `${prefix}-${id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8).toUpperCase()}`;
+}
+
 /** Código curto do pedido para exibir e ditar: "RET-" + 8 primeiros caracteres do UUID. */
 export function withdrawalCode(orderId: string): string {
-  return `RET-${orderId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8).toUpperCase()}`;
+  return shortCode("RET", orderId);
+}
+
+/** Código curto da devolução: "DEV-" + 8 primeiros caracteres do UUID do evento. */
+export function returnCode(eventId: string): string {
+  return shortCode("DEV", eventId);
 }
 
 /** Empréstimo entregue, ainda com material em posse e prazo anterior a hoje. */

@@ -13,7 +13,7 @@ import { useNavigate } from "react-router-dom";
 
 import { inventoryService } from "../services/inventoryService";
 import type { InventoryItem } from "../types";
-import { withdrawalCode } from "../withdrawalLabels";
+import { returnCode, withdrawalCode } from "../withdrawalLabels";
 
 // API nativa (Chrome/Android). Não está na lib do TypeScript.
 interface DetectedBarcode {
@@ -27,6 +27,8 @@ type BarcodeDetectorCtor = new (options?: { formats?: string[] }) => BarcodeDete
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 const WITHDRAWAL_URL = new RegExp(`/withdrawals/(${UUID.source})`, "i");
 const WITHDRAWAL_CODE = /^RET-[0-9A-F]{8}$/i;
+const RETURN_PARAM = new RegExp(`[?&]devolucao=(${UUID.source})`, "i");
+const RETURN_CODE = /^DEV-[0-9A-F]{8}$/i;
 
 /** Usa a API nativa quando existe; no iPhone (WebKit) e no Chrome desktop do Windows, carrega o leitor zxing-wasm do próprio app. */
 async function loadDetector(): Promise<BarcodeDetectorCtor> {
@@ -54,6 +56,14 @@ export function withdrawalIdFromCode(code: string): string | null {
   return match ? match[1].toLowerCase() : null;
 }
 
+/** QR da devolução (link /app/withdrawals/<id>?devolucao=<evento>) destaca a devolução para o paiol. */
+export function withdrawalPathFromCode(code: string): string | null {
+  const withdrawalId = withdrawalIdFromCode(code);
+  if (!withdrawalId) return null;
+  const returnId = code.match(RETURN_PARAM)?.[1].toLowerCase();
+  return `/app/withdrawals/${withdrawalId}${returnId ? `?devolucao=${returnId}` : ""}`;
+}
+
 export default function ScanPage() {
   const [code, setCode] = useState("");
   const [results, setResults] = useState<InventoryItem[] | null>(null);
@@ -70,12 +80,12 @@ export default function ScanPage() {
     setResults(null);
     setWithdrawalNotFound(false);
     if (!value) return;
-    const withdrawalId = withdrawalIdFromCode(value);
-    if (withdrawalId) {
-      navigate(`/app/withdrawals/${withdrawalId}`);
+    const withdrawalPath = withdrawalPathFromCode(value);
+    if (withdrawalPath) {
+      navigate(withdrawalPath);
       return;
     }
-    if (WITHDRAWAL_CODE.test(value)) {
+    if (WITHDRAWAL_CODE.test(value) || RETURN_CODE.test(value)) {
       await openWithdrawalByCode(value.toUpperCase());
       return;
     }
@@ -105,7 +115,7 @@ export default function ScanPage() {
     }
   }
 
-  // Código RET- digitado: procura entre as retiradas visíveis ao usuário.
+  // Código RET- ou DEV- digitado: procura entre as retiradas visíveis ao usuário.
   async function openWithdrawalByCode(value: string) {
     setSearching(true);
     try {
@@ -114,6 +124,13 @@ export default function ScanPage() {
       if (order) {
         navigate(`/app/withdrawals/${order.id}`);
         return;
+      }
+      for (const candidate of items) {
+        const event = candidate.events?.find((item) => returnCode(item.id) === value);
+        if (event) {
+          navigate(`/app/withdrawals/${candidate.id}?devolucao=${event.id}`);
+          return;
+        }
       }
       setWithdrawalNotFound(true);
     } catch {
@@ -172,7 +189,7 @@ export default function ScanPage() {
     <Stack spacing={2}>
       <Typography variant="h5">Escanear etiqueta</Typography>
       <Typography variant="body2" color="text.secondary">
-        Leia a etiqueta do material ou o QR Code da retirada, ou digite o patrimônio, o número de série, parte do nome ou o código RET-.
+        Leia a etiqueta do material ou o QR Code da retirada ou da devolução, ou digite o patrimônio, o número de série, parte do nome ou o código RET- ou DEV-.
       </Typography>
 
       {canUseCamera ? (

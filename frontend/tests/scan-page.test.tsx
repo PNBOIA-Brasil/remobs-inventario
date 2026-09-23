@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useParams } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import ScanPage, { itemIdFromCode, withdrawalIdFromCode } from "../src/pages/ScanPage";
+import ScanPage, { itemIdFromCode, withdrawalIdFromCode, withdrawalPathFromCode } from "../src/pages/ScanPage";
 import { inventoryService } from "../src/services/inventoryService";
 import type { InventoryItem, WithdrawalOrder } from "../src/types";
 import { renderWithProviders } from "./test-utils";
@@ -58,6 +58,29 @@ describe("leitor de etiquetas", () => {
     renderPage();
 
     fireEvent.change(screen.getByLabelText("Código"), { target: { value: "ret-3f2b8c1e" } });
+    fireEvent.click(screen.getByRole("button", { name: "Buscar" }));
+
+    expect(await screen.findByText(`Pedido ${id}`)).toBeTruthy();
+  });
+
+  it("mantém a devolução ao ler o QR Code da devolução", () => {
+    const id = "3f2b8c1e-1234-4abc-9def-0123456789ab";
+    const eventId = "9a8b7c6d-1234-4abc-9def-0123456789ab";
+    expect(withdrawalPathFromCode(`https://x/app/withdrawals/${id}?devolucao=${eventId}`)).toBe(
+      `/app/withdrawals/${id}?devolucao=${eventId}`,
+    );
+    expect(withdrawalPathFromCode(`https://x/app/withdrawals/${id}`)).toBe(`/app/withdrawals/${id}`);
+  });
+
+  it("abre o pedido pelo código DEV- digitado", async () => {
+    const id = "3f2b8c1e-1234-4abc-9def-0123456789ab";
+    vi.spyOn(inventoryService, "listWithdrawals").mockResolvedValue({
+      items: [{ id, events: [{ id: "9a8b7c6d-1234-4abc-9def-0123456789ab" }] }] as unknown as WithdrawalOrder[],
+      total: 1,
+    });
+    renderPage();
+
+    fireEvent.change(screen.getByLabelText("Código"), { target: { value: "dev-9a8b7c6d" } });
     fireEvent.click(screen.getByRole("button", { name: "Buscar" }));
 
     expect(await screen.findByText(`Pedido ${id}`)).toBeTruthy();

@@ -118,4 +118,39 @@ describe("detalhe da retirada para o solicitante", () => {
     expect(screen.getByRole("img", { name: "QR Code da retirada RET-8F3A9C2E" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Tela cheia" })).toBeTruthy();
   });
+
+  it("gera QR Code próprio para a devolução pendente", async () => {
+    vi.spyOn(inventoryService, "getWithdrawal").mockResolvedValue({
+      ...order,
+      events: [
+        {
+          id: "5d4c3b2a-1111-4222-8333-444455556666",
+          line_id: "line-adcp",
+          item_id: "adcp",
+          item_name: "ADCP",
+          event_type: "devolucao",
+          quantity: 1,
+          status: "pending",
+          reason: "Fim da campanha.",
+          requested_by_id: 8,
+          requested_by_username: "campo",
+          decided_by_username: null,
+          decision_reason: null,
+          created_at: "2026-09-23T12:00:00Z",
+          decided_at: null,
+        },
+      ],
+    });
+
+    renderWithProviders(
+      <MemoryRouter initialEntries={["/app/withdrawals/order-1"]}>
+        <Routes>
+          <Route path="/app/withdrawals/:id" element={<WithdrawalDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole("img", { name: "QR Code da devolução DEV-5D4C3B2A" })).toBeTruthy();
+    expect(screen.queryByText("QR Code da retirada")).toBeNull();
+  });
 });

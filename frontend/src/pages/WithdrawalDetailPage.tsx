@@ -5,8 +5,8 @@ import CardContent from "@mui/material/CardContent";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
-import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Fragment, useEffect, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import LoadingState from "../components/LoadingState";
 import { APPROVE_PERMISSIONS } from "../navigation";
@@ -17,7 +17,7 @@ import { inventoryService } from "../services/inventoryService";
 import { useAuth } from "../state/AuthContext";
 import { useSnackbar } from "../state/SnackbarContext";
 import type { CustodyEvent, WithdrawalLine, WithdrawalOrder } from "../types";
-import { auditActionLabel, isOverdue, purposeLabel, withdrawalCode } from "../withdrawalLabels";
+import { auditActionLabel, isOverdue, purposeLabel, returnCode, withdrawalCode } from "../withdrawalLabels";
 
 type Decision =
   | { kind: "approve" | "reject" | "deliver" }
@@ -32,6 +32,8 @@ function pendingQuantity(order: WithdrawalOrder, lineId: string): number {
 
 export default function WithdrawalDetailPage() {
   const { id = "" } = useParams();
+  // Devolução lida pelo QR (?devolucao=<id do evento>): destacada para o paiol conferir.
+  const scannedReturnId = useSearchParams()[0].get("devolucao");
   const [order, setOrder] = useState<WithdrawalOrder | null>(null);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -146,7 +148,15 @@ export default function WithdrawalDetailPage() {
         </CardContent>
       </Card>
 
-      {(order.status === "pending_approval" || order.status === "approved") && <WithdrawalQrCard orderId={order.id} />}
+      {(order.status === "pending_approval" || order.status === "approved") && (
+        <WithdrawalQrCard
+          path={`/app/withdrawals/${order.id}`}
+          code={withdrawalCode(order.id)}
+          title="QR Code da retirada"
+          hint="Apresente no paiol para agilizar a conferência e a entrega."
+          label="CÓDIGO DA RETIRADA"
+        />
+      )}
 
       {order.lines.map((line) => {
         const waiting = pendingQuantity(order, line.id);
@@ -198,32 +208,49 @@ export default function WithdrawalDetailPage() {
 
       {order.events.length > 0 && <Typography variant="h6">Devoluções e baixas</Typography>}
       {order.events.map((event: CustodyEvent) => (
-        <Card key={event.id}>
-          <CardContent>
-            <Stack spacing={1}>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography fontWeight={700}>
-                  {event.event_type === "baixa" ? "Baixa" : "Devolução"} de {event.quantity} × {event.item_name}
-                </Typography>
-                <StatusChip status={event.status} />
+        <Fragment key={event.id}>
+          <Card
+            ref={event.id === scannedReturnId ? (el: HTMLDivElement | null) => el?.scrollIntoView?.({ block: "center" }) : undefined}
+            sx={event.id === scannedReturnId ? { outline: 2, outlineColor: "primary.main" } : undefined}
+          >
+            <CardContent>
+              <Stack spacing={1}>
+                {event.id === scannedReturnId && event.status === "pending" && (
+                  <Alert severity="info">Devolução lida pelo QR Code. Confira o material e decida.</Alert>
+                )}
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography fontWeight={700}>
+                    {event.event_type === "baixa" ? "Baixa" : "Devolução"} de {event.quantity} × {event.item_name}
+                  </Typography>
+                  <StatusChip status={event.status} />
+                </Stack>
+                <Typography variant="body2">{event.reason}</Typography>
+                {event.decision_reason && (
+                  <Typography variant="body2" color="text.secondary">
+                    {event.decided_by_username}: {event.decision_reason}
+                  </Typography>
+                )}
+                {event.status === "pending" && canDecide && (
+                  (isInventoryAdmin || (event.event_type === "devolucao" ? hasPermission("inventory:return:decide") : hasPermission("inventory:writeoff:decide"))) && (
+                    <Stack direction="row" spacing={1}>
+                      <Button variant="contained" onClick={() => setDecision({ kind: "accept", eventId: event.id })}>Aceitar</Button>
+                      <Button variant="outlined" color="error" onClick={() => setDecision({ kind: "refuse", eventId: event.id })}>Recusar</Button>
+                    </Stack>
+                  )
+                )}
               </Stack>
-              <Typography variant="body2">{event.reason}</Typography>
-              {event.decision_reason && (
-                <Typography variant="body2" color="text.secondary">
-                  {event.decided_by_username}: {event.decision_reason}
-                </Typography>
-              )}
-              {event.status === "pending" && canDecide && (
-                (isInventoryAdmin || (event.event_type === "devolucao" ? hasPermission("inventory:return:decide") : hasPermission("inventory:writeoff:decide"))) && (
-                  <Stack direction="row" spacing={1}>
-                    <Button variant="contained" onClick={() => setDecision({ kind: "accept", eventId: event.id })}>Aceitar</Button>
-                    <Button variant="outlined" color="error" onClick={() => setDecision({ kind: "refuse", eventId: event.id })}>Recusar</Button>
-                  </Stack>
-                )
-              )}
-            </Stack>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+          {event.event_type === "devolucao" && event.status === "pending" && (isRequester || isInventoryAdmin) && (
+            <WithdrawalQrCard
+              path={`/app/withdrawals/${order.id}?devolucao=${event.id}`}
+              code={returnCode(event.id)}
+              title="QR Code da devolução"
+              hint="Apresente no paiol com o material: o responsável lê na tela Escanear e aprova a devolução."
+              label="CÓDIGO DA DEVOLUÇÃO"
+            />
+          )}
+        </Fragment>
       ))}
 
       <Card>

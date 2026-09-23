@@ -2,6 +2,11 @@
 
 ## [2026-09-23]
 
+### Adicionado — QR Code da devolução
+- Cada devolução pendente gera um QR Code próprio e o código curto `DEV-XXXXXXXX`, exibidos ao solicitante no pedido, com tela cheia, cópia do código e download PNG.
+- O responsável pelo paiol lê o QR na tela Escanear (ou digita o código `DEV-`) e abre o pedido com a devolução destacada, pronta para aceitar ou recusar. As permissões de decisão não mudam.
+- Somente frontend, sem migração nem mudança de contrato. Cache PWA `remobs-inventario-v20`. Plano: `planos/2026-09-23-qr-code-devolucao.md`.
+
 ### Publicado — leitura pela câmera no iPhone
 - Produção: somente frontend, Amplify jobs `42` e `43` `SUCCEED`, bundle `index-B93GDWZf.js`, cache PWA `v19`. Backend e banco sem alteração.
 - Regra de reescrita SPA do Amplify ajustada para incluir `wasm` entre as extensões servidas como arquivo; antes, o `.wasm` do leitor era trocado pelo `index.html`. O job `43` republicou o mesmo pacote para limpar o cache da CDN.
