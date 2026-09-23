@@ -28,4 +28,15 @@ Listar as notas recebidas, com busca, detalhe dos itens que entraram por cada no
 
 ## Resultado
 
-Implementado e validado localmente.
+Implementado e validado localmente. Commit `bfe9fc6`.
+
+Publicação autorizada pelo usuário em 2026-09-23 (profile `aws-remobs`, conta `220790920077`, `sa-east-1`):
+
+| Etapa | Resultado |
+| :--- | :--- |
+| Migração | `0009_received_invoices` aplicada no RDS de produção |
+| Imagem | `remobs-inventario-backend:prod-2026-09-23-notas-recebidas` no ECR |
+| ECS | task definition `remobs-inventario-backend:21` (cópia da `:20`, só a imagem trocada), rollout `COMPLETED`, `/healthz` 200, rotas novas no OpenAPI e `401` sem token |
+| Amplify | job `49` `SUCCEED`, bundle `index-Df0KDfMU.js`, `sw.js` `v25`, `/app/receipts/invoices` 200 |
+
+Rollback: ECS de volta para `remobs-inventario-backend:20` e republicação do job 48 no Amplify; a tabela `received_invoices` pode ficar.

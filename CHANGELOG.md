@@ -2,6 +2,10 @@
 
 ## [2026-09-23]
 
+### Publicado — tela de notas fiscais recebidas
+- Produção: migração `0009_received_invoices` aplicada, backend na task definition `remobs-inventario-backend:21` (imagem `prod-2026-09-23-notas-recebidas`) e frontend no Amplify job `49` `SUCCEED`, bundle `index-Df0KDfMU.js`, cache PWA `v25`.
+- Rollback: ECS de volta para `remobs-inventario-backend:20` e republicação do job 48 no Amplify; a tabela pode ficar.
+
 ### Adicionado — tela de notas fiscais recebidas
 - Nova tela "Notas fiscais" (`/app/receipts/invoices`, grupo Estoque) lista as notas recebidas, da mais recente para a mais antiga, com busca por número, fornecedor, CNPJ ou chave de acesso. Cada nota mostra total, fornecedor, data, quem recebeu, local, unidades e se houve divergência; ao abrir, traz CNPJ, emissão, chave, observações, o botão "Baixar nota fiscal" e os itens recebidos, com link para a ficha de cada um.
 - O cabeçalho conferido da nota passa a ser gravado ao registrar a entrada. A mesma nota não pode ser registrada duas vezes e, ao ler uma nota já recebida, a etapa Dados avisa quando e por quem ela entrou.
