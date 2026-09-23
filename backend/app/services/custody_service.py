@@ -51,18 +51,26 @@ def _deny_self(user: AuthUser, requester_id: int) -> None:
         )
 
 
+ADMIN_PERMISSION = "inventory:movement:approve"
+
+
+def is_inventory_admin(user: AuthUser) -> bool:
+    """Admin do inventário executa todo o fluxo: aprovar, entregar, devolver, baixar e decidir."""
+    return "*" in user.permissions or ADMIN_PERMISSION in user.permissions
+
+
 def _self_approval(user: AuthUser, requester_id: int) -> bool:
     """Admin do inventário pode decidir o próprio pedido; os demais, não. Retorna se é autoaprovação."""
     if user.id != requester_id:
         return False
-    if "*" in user.permissions or "inventory:movement:approve" in user.permissions:
+    if is_inventory_admin(user):
         return True
     _deny_self(user, requester_id)
     return False
 
 
 def _require_permission(user: AuthUser, code: str) -> None:
-    if "*" in user.permissions or code in user.permissions:
+    if is_inventory_admin(user) or code in user.permissions:
         return
     raise AppError(
         "Permissões insuficientes.",
@@ -539,7 +547,7 @@ async def reject_withdrawal(session: AsyncSession, *, user: AuthUser, order_id: 
 
 async def deliver_withdrawal(session: AsyncSession, *, user: AuthUser, order_id: uuid.UUID, reason: str) -> WithdrawalOrder:
     order = await _order_or_404(session, order_id)
-    _deny_self(user, order.requested_by_id)
+    _self_approval(user, order.requested_by_id)
     if order.status != "approved":
         raise AppError("Pedido precisa estar aprovado para a entrega.", code="withdrawal_not_approved", status_code=409)
     before = await serialize_order(session, order, include_details=False)
@@ -627,8 +635,8 @@ async def _request_custody_event(
     reason: str,
 ) -> WithdrawalOrder:
     order = await _order_or_404(session, order_id)
-    if order.requested_by_id != user.id:
-        raise AppError("Só o solicitante pode pedir devolução ou baixa.", code="requester_only", status_code=403)
+    if order.requested_by_id != user.id and not is_inventory_admin(user):
+        raise AppError("Só o solicitante ou o admin do inventário pode pedir devolução ou baixa.", code="requester_only", status_code=403)
     if order.status != "delivered":
         raise AppError("O material ainda não foi entregue.", code="withdrawal_not_delivered", status_code=409)
     line = await session.get(WithdrawalLine, line_id)
@@ -742,7 +750,7 @@ async def decide_custody_event(
     if not event:
         raise AppError("Solicitação de devolução ou baixa não encontrada.", code="event_not_found", status_code=404)
     order = await _order_or_404(session, event.order_id)
-    _deny_self(user, order.requested_by_id)
+    _self_approval(user, order.requested_by_id)
     _require_permission(user, EVENT_PERMISSION[event.event_type])
     if event.status != "pending":
         raise AppError("Solicitação já foi decidida.", code="event_not_pending", status_code=409)

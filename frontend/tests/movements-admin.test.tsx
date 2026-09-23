@@ -35,7 +35,7 @@ const order = {
 describe("admin do inventário", () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it("vê a fila de aprovação e pode aprovar, sem entregar", async () => {
+  it("vê a fila de aprovação e pode aprovar", async () => {
     vi.spyOn(inventoryService, "listWithdrawals").mockResolvedValue({ items: [order], total: 1 });
     vi.spyOn(inventoryService, "listMovements").mockResolvedValue({ items: [], total: 0 });
 
@@ -47,7 +47,6 @@ describe("admin do inventário", () => {
 
     expect(await screen.findByRole("button", { name: "Aprovar" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Recusar" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Entregar" })).toBeNull();
   });
 
   it("vê Aprovar também no próprio pedido", async () => {
@@ -62,5 +61,18 @@ describe("admin do inventário", () => {
 
     expect(await screen.findByRole("button", { name: "Aprovar" })).toBeTruthy();
     expect(screen.queryByText(/não aprova o próprio pedido/)).toBeNull();
+  });
+
+  it("entrega o próprio pedido aprovado", async () => {
+    vi.spyOn(inventoryService, "listWithdrawals").mockResolvedValue({ items: [{ ...order, status: "approved", requested_by_id: 24 }], total: 1 });
+    vi.spyOn(inventoryService, "listMovements").mockResolvedValue({ items: [], total: 0 });
+
+    renderWithProviders(
+      <MemoryRouter initialEntries={["/app/movements?tab=entregar"]}>
+        <MovementsPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole("button", { name: "Entregar" })).toBeTruthy();
   });
 });

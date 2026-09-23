@@ -2,6 +2,10 @@
 
 ## [2026-09-23]
 
+### Alterado — admin executa todo o fluxo
+- O admin do inventário (`inventory:movement:approve` ou `*`) aprova, entrega, registra devolução ou baixa por qualquer pessoa e decide essas solicitações, inclusive nos próprios pedidos. Todas as etapas ficam no histórico com ator, papéis e motivo. Paiol comum continua sem decidir o próprio pedido.
+- Cache PWA `remobs-inventario-v15`.
+
 ### Publicado — autoaprovação
 - Produção: imagem `prod-2026-09-23-autoaprovacao`, task definition `remobs-inventario-backend:16` (`COMPLETED`), Amplify job `37` `SUCCEED`, cache PWA `v14`.
 

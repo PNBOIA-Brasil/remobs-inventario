@@ -46,6 +46,7 @@ REQUEST_PERMISSIONS = [
     "inventory:movement:request",
     "inventory:return:request",
     "inventory:writeoff:request",
+    "inventory:movement:approve",
 ]
 
 
@@ -125,7 +126,7 @@ async def reject_withdrawal_order(
 async def deliver_withdrawal_order(
     order_id: uuid.UUID,
     payload: DecisionReason,
-    user: AuthUser = Depends(require_permissions(["inventory:withdrawal:deliver"])),
+    user: AuthUser = Depends(require_any_permission(["inventory:withdrawal:deliver", "inventory:movement:approve"])),
     session: AsyncSession = Depends(get_async_session),
 ) -> dict:
     order = await deliver_withdrawal(session, user=user, order_id=order_id, reason=payload.reason)
@@ -180,7 +181,7 @@ async def writeoff_withdrawal_line(
 async def accept_custody_event(
     event_id: uuid.UUID,
     payload: DecisionReason,
-    user: AuthUser = Depends(require_any_permission(["inventory:return:decide", "inventory:writeoff:decide"])),
+    user: AuthUser = Depends(require_any_permission(["inventory:return:decide", "inventory:writeoff:decide", "inventory:movement:approve"])),
     session: AsyncSession = Depends(get_async_session),
 ) -> dict:
     order = await decide_custody_event(session, user=user, event_id=event_id, accept=True, reason=payload.reason)
@@ -193,7 +194,7 @@ async def accept_custody_event(
 async def refuse_custody_event(
     event_id: uuid.UUID,
     payload: DecisionReason,
-    user: AuthUser = Depends(require_any_permission(["inventory:return:decide", "inventory:writeoff:decide"])),
+    user: AuthUser = Depends(require_any_permission(["inventory:return:decide", "inventory:writeoff:decide", "inventory:movement:approve"])),
     session: AsyncSession = Depends(get_async_session),
 ) -> dict:
     order = await decide_custody_event(session, user=user, event_id=event_id, accept=False, reason=payload.reason)

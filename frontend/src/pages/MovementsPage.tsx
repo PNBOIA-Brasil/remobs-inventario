@@ -76,8 +76,8 @@ export default function MovementsPage() {
     ...(isPaiol
       ? [
           { id: "aprovar", label: "Aprovar", orders: orders.filter(canApprove) },
-          { id: "entregar", label: "Entregar", orders: others.filter((order) => order.status === "approved") },
-          { id: "devolucoes", label: "Devoluções", orders: others.filter(hasPendingEvent) },
+          { id: "entregar", label: "Entregar", orders: (isInventoryAdmin ? orders : others).filter((order) => order.status === "approved") },
+          { id: "devolucoes", label: "Devoluções", orders: (isInventoryAdmin ? orders : others).filter(hasPendingEvent) },
         ]
       : []),
     ...(canRequest
@@ -185,7 +185,7 @@ export default function MovementsPage() {
                     <Button variant="outlined" color="error" onClick={() => setPending({ kind: "withdrawal", id: order.id, action: "reject" })}>Recusar</Button>
                   </>
                 )}
-                {order.status === "approved" && hasPermission("inventory:withdrawal:deliver") && canDecide(order) && (
+                {order.status === "approved" && (hasPermission("inventory:withdrawal:deliver") || isInventoryAdmin) && (canDecide(order) || isInventoryAdmin) && (
                   <Button variant="contained" onClick={() => setPending({ kind: "withdrawal", id: order.id, action: "deliver" })}>Entregar</Button>
                 )}
               </Stack>

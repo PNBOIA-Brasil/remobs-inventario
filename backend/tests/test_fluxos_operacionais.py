@@ -276,33 +276,66 @@ def test_busca_de_itens_acha_por_patrimonio_e_serie(client: TestClient) -> None:
         assert [item["id"] for item in found] == [item_id]
 
 
-def test_admin_do_inventario_aprova_inclusive_o_proprio_com_registro_mas_nao_entrega(client: TestClient) -> None:
+def test_admin_do_inventario_executa_todo_o_fluxo_inclusive_no_proprio_pedido(client: TestClient) -> None:
     gestor = _bearer(
         ["inventory:item:read", "inventory:movement:approve", "inventory:withdrawal:request"],
         user_id=24,
         username="gestor",
         roles=["inventario-admin"],
     )
-    a_id, a_loc = _item(client, quantity=3)
-    order = _order(client, [(a_id, a_loc, 1)])
+    a_id, a_loc = _item(client, quantity=5)
 
-    listed = client.get("/inventory/withdrawals", headers=gestor).json()["items"]
-    assert any(item["id"] == order["id"] for item in listed)
+    # Pedido de outra pessoa: admin vê, aprova, entrega, registra devolução por ela e aceita.
+    order = _order(client, [(a_id, a_loc, 2)])
+    assert any(item["id"] == order["id"] for item in client.get("/inventory/withdrawals", headers=gestor).json()["items"])
+    line_id = order["lines"][0]["id"]
+    for step in ("approve", "deliver"):
+        response = client.post(f"/inventory/withdrawals/{order['id']}/{step}", headers=gestor, json={"reason": f"Gestão: {step}."})
+        assert response.status_code == 200, response.text
+    returned = client.post(
+        f"/inventory/withdrawals/{order['id']}/lines/{line_id}/return",
+        headers=gestor,
+        json={"quantity": 1, "reason": "Devolução registrada no balcão pelo admin."},
+    )
+    assert returned.status_code == 200, returned.text
+    event_id = returned.json()["events"][0]["id"]
+    accepted = client.post(f"/inventory/custody-events/{event_id}/accept", headers=gestor, json={"reason": "Conferido."})
+    assert accepted.status_code == 200, accepted.text
 
-    approved = client.post(f"/inventory/withdrawals/{order['id']}/approve", headers=gestor, json={"reason": "Aprovado pela gestão."})
-    assert approved.status_code == 200, approved.text
-    assert approved.json()["status"] == "approved"
-    assert client.post(f"/inventory/withdrawals/{order['id']}/deliver", headers=gestor, json={"reason": "Tentativa."}).status_code == 403
-
+    # Próprio pedido: pede, aprova, entrega, baixa e aceita a baixa.
     own = client.post(
         "/inventory/withdrawals",
         headers=gestor,
         json={"reason": "Pedido do gestor.", "lines": [{"item_id": a_id, "from_location_id": a_loc, "quantity": 1}]},
     ).json()
-    self_ok = client.post(f"/inventory/withdrawals/{own['id']}/approve", headers=gestor, json={"reason": "Autoaprovação do gestor."})
-    assert self_ok.status_code == 200, self_ok.text
-    assert self_ok.json()["status"] == "approved"
+    own_line = own["lines"][0]["id"]
+    assert client.post(f"/inventory/withdrawals/{own['id']}/approve", headers=gestor, json={"reason": "Autoaprovação do gestor."}).status_code == 200
+    assert client.post(f"/inventory/withdrawals/{own['id']}/deliver", headers=gestor, json={"reason": "Retirei."}).status_code == 200
+    writeoff = client.post(
+        f"/inventory/withdrawals/{own['id']}/lines/{own_line}/writeoff", headers=gestor, json={"quantity": 1, "reason": "Consumido."}
+    )
+    assert writeoff.status_code == 200, writeoff.text
+    closed = client.post(f"/inventory/custody-events/{writeoff.json()['events'][0]['id']}/accept", headers=gestor, json={"reason": "Ok."})
+    assert closed.json()["status"] == "closed"
+
     trail = client.get(f"/inventory/withdrawals/{own['id']}", headers=gestor).json()["audit_trail"]
-    assert [entry["action"] for entry in trail] == ["withdrawal_requested", "withdrawal_self_approved"]
-    assert trail[-1]["actor_username"] == "gestor" and trail[-1]["reason"] == "Autoaprovação do gestor."
-    assert client.post(f"/inventory/withdrawals/{own['id']}/deliver", headers=PAIOL, json={"reason": "Ok."}).status_code == 200
+    assert [entry["action"] for entry in trail] == [
+        "withdrawal_requested",
+        "withdrawal_self_approved",
+        "withdrawal_delivered",
+        "writeoff_requested",
+        "writeoff_accepted",
+    ]
+    assert all(entry["actor_username"] == "gestor" for entry in trail)
+
+
+def test_paiol_comum_continua_sem_decidir_o_proprio_pedido(client: TestClient) -> None:
+    a_id, a_loc = _item(client, quantity=2)
+    own = client.post(
+        "/inventory/withdrawals",
+        headers=_bearer(["inventory:withdrawal:request"], user_id=3, username="paiol", roles=["paiol"]),
+        json={"reason": "Pedido do paiol.", "lines": [{"item_id": a_id, "from_location_id": a_loc, "quantity": 1}]},
+    ).json()
+    denied = client.post(f"/inventory/withdrawals/{own['id']}/approve", headers=PAIOL, json={"reason": "Próprio."})
+    assert denied.status_code == 403
+    assert denied.json()["error"]["code"] == "self_decision_denied"

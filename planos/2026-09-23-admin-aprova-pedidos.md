@@ -60,3 +60,16 @@ Publicado em 2026-09-23, autorizado pelo usuário. Commit `61e4b62`.
 | Amplify | job `37` `SUCCEED`, bundle `index-DE2MXnEo.js`, `sw.js` `v14` |
 
 Rollback: serviço ECS para `remobs-inventario-backend:15` e republicação do job 36 no Amplify.
+
+## Admin executa todo o fluxo (2026-09-23)
+
+Pedido do usuário: o administrador deve fazer todo o processo de retirada e devolução.
+
+Regra: admin do inventário (`inventory:movement:approve` ou `*`) aprova, recusa, entrega, registra devolução ou baixa em nome de qualquer pessoa e aceita ou recusa essas solicitações, inclusive nos próprios pedidos. Paiol comum e solicitante continuam com as regras anteriores (ninguém além do admin decide o próprio pedido).
+
+- Backend: `is_inventory_admin` em `custody_service.py`; `_self_approval` substitui `_deny_self` na entrega e na decisão de devolução ou baixa; solicitação de devolução ou baixa aceita o admin além do solicitante; rotas de entrega e decisão aceitam `inventory:movement:approve`.
+- Histórico: todas as etapas continuam gravadas com ator, papéis e motivo; autoaprovação e autorrecusa têm ação própria.
+- Frontend: botões Entregar, Devolver, Baixar, Aceitar e Recusar para o admin na lista e no detalhe; filas Entregar e Devoluções e contadores do Início incluem os pedidos do admin.
+- Cache PWA `remobs-inventario-v15`.
+
+Validação: backend 37 testes (fluxo completo do admin em pedido alheio e próprio, com histórico; paiol comum sem autoaprovação); frontend `tsc -b` e 54 testes.

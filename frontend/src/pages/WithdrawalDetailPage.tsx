@@ -56,12 +56,14 @@ export default function WithdrawalDetailPage() {
   useEffect(load, [id]);
 
   const isRequester = Boolean(order && user?.id === order.requested_by_id);
-  const canDecide = Boolean(order && user?.id !== order.requested_by_id);
+  // Admin do inventário executa todo o fluxo, inclusive no próprio pedido; tudo fica no histórico.
+  const isInventoryAdmin = hasAnyPermission("inventory:movement:approve");
+  const canDecide = Boolean(order && (user?.id !== order.requested_by_id || isInventoryAdmin));
   // Admin do inventário pode aprovar o próprio pedido (fica registrado como autoaprovação).
   const canApprove = Boolean(
     order?.status === "pending_approval" &&
       hasAnyPermission(...APPROVE_PERMISSIONS) &&
-      (canDecide || hasAnyPermission("inventory:movement:approve")),
+      canDecide,
   );
 
   async function confirm(reason: string) {
@@ -135,7 +137,7 @@ export default function WithdrawalDetailPage() {
                 <Button variant="outlined" color="error" onClick={() => setDecision({ kind: "reject" })}>Recusar</Button>
               </Stack>
             )}
-            {order.status === "approved" && hasPermission("inventory:withdrawal:deliver") && canDecide && (
+            {order.status === "approved" && (hasPermission("inventory:withdrawal:deliver") || isInventoryAdmin) && canDecide && (
               <Button variant="contained" onClick={() => setDecision({ kind: "deliver" })}>Entregar</Button>
             )}
           </Stack>
@@ -167,7 +169,7 @@ export default function WithdrawalDetailPage() {
                     slotProps={{ htmlInput: { min: 0, max: line.quantity } }}
                   />
                 )}
-                {order.status === "delivered" && isRequester && available > 0 && (
+                {order.status === "delivered" && (isRequester || isInventoryAdmin) && available > 0 && (
                   <Stack spacing={1}>
                     <TextField
                       label={`Quantidade de ${line.item_name}`}
@@ -208,7 +210,7 @@ export default function WithdrawalDetailPage() {
                 </Typography>
               )}
               {event.status === "pending" && canDecide && (
-                (event.event_type === "devolucao" ? hasPermission("inventory:return:decide") : hasPermission("inventory:writeoff:decide")) && (
+                (isInventoryAdmin || (event.event_type === "devolucao" ? hasPermission("inventory:return:decide") : hasPermission("inventory:writeoff:decide"))) && (
                   <Stack direction="row" spacing={1}>
                     <Button variant="contained" onClick={() => setDecision({ kind: "accept", eventId: event.id })}>Aceitar</Button>
                     <Button variant="outlined" color="error" onClick={() => setDecision({ kind: "refuse", eventId: event.id })}>Recusar</Button>
