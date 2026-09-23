@@ -1,11 +1,15 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useParams } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import ScanPage, { itemIdFromCode } from "../src/pages/ScanPage";
+import ScanPage, { itemIdFromCode, withdrawalIdFromCode } from "../src/pages/ScanPage";
 import { inventoryService } from "../src/services/inventoryService";
-import type { InventoryItem } from "../src/types";
+import type { InventoryItem, WithdrawalOrder } from "../src/types";
 import { renderWithProviders } from "./test-utils";
+
+function WithdrawalStub() {
+  return <div>{`Pedido ${useParams().id}`}</div>;
+}
 
 const item = (id: string, patrimony: string) =>
   ({ id, name: `Multímetro ${id}`, patrimony_number: patrimony, serial_number: null, stock_total: 1, unit: "un" }) as unknown as InventoryItem;
@@ -16,6 +20,7 @@ function renderPage() {
       <Routes>
         <Route path="/app/scan" element={<ScanPage />} />
         <Route path="/app/inventory/:id" element={<div>Ficha do item</div>} />
+        <Route path="/app/withdrawals/:id" element={<WithdrawalStub />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -28,6 +33,44 @@ describe("leitor de etiquetas", () => {
     const id = "3f2b8c1e-1234-4abc-9def-0123456789ab";
     expect(itemIdFromCode(`https://inventario.remobs.com.br/app/inventory/${id}`)).toBe(id);
     expect(itemIdFromCode("PAT 004512")).toBeNull();
+  });
+
+  it("abre o pedido ao ler o QR Code da retirada", async () => {
+    const id = "3f2b8c1e-1234-4abc-9def-0123456789ab";
+    expect(withdrawalIdFromCode(`https://inventario.remobs.com.br/app/withdrawals/${id}`)).toBe(id);
+    expect(withdrawalIdFromCode(`https://inventario.remobs.com.br/app/inventory/${id}`)).toBeNull();
+    const search = vi.spyOn(inventoryService, "listItems");
+    renderPage();
+
+    fireEvent.change(screen.getByLabelText("Código"), { target: { value: `https://x/app/withdrawals/${id}` } });
+    fireEvent.click(screen.getByRole("button", { name: "Buscar" }));
+
+    expect(await screen.findByText(`Pedido ${id}`)).toBeTruthy();
+    expect(search).not.toHaveBeenCalled();
+  });
+
+  it("abre o pedido pelo código RET- digitado", async () => {
+    const id = "3f2b8c1e-1234-4abc-9def-0123456789ab";
+    vi.spyOn(inventoryService, "listWithdrawals").mockResolvedValue({
+      items: [{ id: "aaaaaaaa-0000-4000-8000-000000000000" }, { id }] as unknown as WithdrawalOrder[],
+      total: 2,
+    });
+    renderPage();
+
+    fireEvent.change(screen.getByLabelText("Código"), { target: { value: "ret-3f2b8c1e" } });
+    fireEvent.click(screen.getByRole("button", { name: "Buscar" }));
+
+    expect(await screen.findByText(`Pedido ${id}`)).toBeTruthy();
+  });
+
+  it("avisa quando o código RET- não corresponde a nenhuma retirada", async () => {
+    vi.spyOn(inventoryService, "listWithdrawals").mockResolvedValue({ items: [], total: 0 });
+    renderPage();
+
+    fireEvent.change(screen.getByLabelText("Código"), { target: { value: "RET-00000000" } });
+    fireEvent.click(screen.getByRole("button", { name: "Buscar" }));
+
+    expect(await screen.findByText("Nenhuma retirada encontrada para este código.")).toBeTruthy();
   });
 
   it("abre a ficha quando o patrimônio bate exatamente", async () => {

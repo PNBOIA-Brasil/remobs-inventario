@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 
 import { inventoryService } from "../services/inventoryService";
 import type { InventoryItem } from "../types";
+import { withdrawalCode } from "../withdrawalLabels";
 
 // API nativa (Chrome/Android). Não está na lib do TypeScript.
 interface DetectedBarcode {
@@ -24,6 +25,8 @@ interface BarcodeDetectorLike {
 type BarcodeDetectorCtor = new (options?: { formats?: string[] }) => BarcodeDetectorLike;
 
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+const WITHDRAWAL_URL = new RegExp(`/withdrawals/(${UUID.source})`, "i");
+const WITHDRAWAL_CODE = /^RET-[0-9A-F]{8}$/i;
 
 function detectorCtor(): BarcodeDetectorCtor | undefined {
   return (window as unknown as { BarcodeDetector?: BarcodeDetectorCtor }).BarcodeDetector;
@@ -35,9 +38,16 @@ export function itemIdFromCode(code: string): string | null {
   return match ? match[0].toLowerCase() : null;
 }
 
+/** QR da retirada (link /app/withdrawals/<id>) abre o pedido na etapa em que ele está. */
+export function withdrawalIdFromCode(code: string): string | null {
+  const match = code.match(WITHDRAWAL_URL);
+  return match ? match[1].toLowerCase() : null;
+}
+
 export default function ScanPage() {
   const [code, setCode] = useState("");
   const [results, setResults] = useState<InventoryItem[] | null>(null);
+  const [withdrawalNotFound, setWithdrawalNotFound] = useState(false);
   const [searching, setSearching] = useState(false);
   const [cameraOn, setCameraOn] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -47,7 +57,18 @@ export default function ScanPage() {
 
   async function lookup(raw: string) {
     const value = raw.trim();
+    setResults(null);
+    setWithdrawalNotFound(false);
     if (!value) return;
+    const withdrawalId = withdrawalIdFromCode(value);
+    if (withdrawalId) {
+      navigate(`/app/withdrawals/${withdrawalId}`);
+      return;
+    }
+    if (WITHDRAWAL_CODE.test(value)) {
+      await openWithdrawalByCode(value.toUpperCase());
+      return;
+    }
     const directId = itemIdFromCode(value);
     if (directId) {
       navigate(`/app/inventory/${directId}`);
@@ -69,6 +90,24 @@ export default function ScanPage() {
       setResults(found);
     } catch {
       setResults([]);
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  // Código RET- digitado: procura entre as retiradas visíveis ao usuário.
+  async function openWithdrawalByCode(value: string) {
+    setSearching(true);
+    try {
+      const { items } = await inventoryService.listWithdrawals();
+      const order = items.find((candidate) => withdrawalCode(candidate.id) === value);
+      if (order) {
+        navigate(`/app/withdrawals/${order.id}`);
+        return;
+      }
+      setWithdrawalNotFound(true);
+    } catch {
+      setWithdrawalNotFound(true);
     } finally {
       setSearching(false);
     }
@@ -120,7 +159,7 @@ export default function ScanPage() {
     <Stack spacing={2}>
       <Typography variant="h5">Escanear etiqueta</Typography>
       <Typography variant="body2" color="text.secondary">
-        Leia o código da etiqueta ou digite o patrimônio, o número de série ou parte do nome.
+        Leia a etiqueta do material ou o QR Code da retirada, ou digite o patrimônio, o número de série, parte do nome ou o código RET-.
       </Typography>
 
       {canUseCamera ? (
@@ -146,6 +185,7 @@ export default function ScanPage() {
         </Button>
       </Stack>
 
+      {withdrawalNotFound && <Alert severity="warning">Nenhuma retirada encontrada para este código.</Alert>}
       {results && results.length === 0 && <Alert severity="warning">Nenhum material encontrado para este código.</Alert>}
       {results && results.length > 1 && (
         <Stack spacing={1}>

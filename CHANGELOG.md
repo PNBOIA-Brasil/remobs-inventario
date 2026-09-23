@@ -2,6 +2,11 @@
 
 ## [2026-09-23]
 
+### Corrigido — leitura do QR Code da retirada na tela Escanear
+- Ler o QR Code da retirada na tela Escanear abre diretamente o pedido, já na etapa em que ele se encontra (aprovação, entrega, devolução ou baixa). Antes, o id do pedido era tratado como id de material e abria uma ficha inexistente.
+- O código curto `RET-XXXXXXXX` digitado também abre o pedido correspondente, entre as retiradas visíveis ao usuário; sem correspondência, a tela avisa.
+- Somente frontend, sem mudança no backend. Cache PWA `remobs-inventario-v18`. Plano: `planos/2026-09-23-escanear-qr-retirada.md`.
+
 ### Publicado — QR Code da retirada
 - Produção: somente frontend, Amplify job `40` `SUCCEED`, bundle `index-BVLoAyPa.js`, cache PWA `v17`. Backend e banco sem alteração. Rollback: republicar o job 39 no Amplify.
 
