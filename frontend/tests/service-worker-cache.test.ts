@@ -7,7 +7,7 @@ describe("service worker do PWA", () => {
   it("força troca de cache e ativação imediata após novo deploy", () => {
     const serviceWorker = readFileSync(resolve("public/sw.js"), "utf8");
 
-    expect(serviceWorker).toContain('const CACHE_NAME = "remobs-inventario-v12"');
+    expect(serviceWorker).toContain('const CACHE_NAME = "remobs-inventario-v13"');
     expect(serviceWorker).toContain("self.skipWaiting()");
     expect(serviceWorker).toContain("self.clients.claim()");
   });

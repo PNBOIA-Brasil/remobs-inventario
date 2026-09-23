@@ -4,6 +4,7 @@
 
 ### Alterado
 - O admin do inventário (`inventory:movement:approve`) passa a ver todos os pedidos de retirada e a aprovar ou recusar, inclusive por linha. Entrega e decisão de devolução e baixa continuam só com o paiol, e ninguém decide o próprio pedido. Sem permissão nova no `remobs-users`. Plano: `planos/2026-09-23-admin-aprova-pedidos.md`.
+- Cache PWA `remobs-inventario-v13`.
 
 ## [2026-09-22] — Redesenho por fluxos
 
