@@ -54,4 +54,16 @@ Fora do escopo: folha A4 com etiquetas em lote e escolha do tamanho da etiqueta.
 
 ## Resultado
 
-Implementado e validado localmente. Publicação pendente.
+Implementado e validado localmente. Commit `d108ee4`.
+
+Deploy autorizado pelo usuário em 2026-09-23 (profile `aws-remobs`, conta `220790920077`, `sa-east-1`):
+
+| Etapa | Resultado |
+| :--- | :--- |
+| Checagem prévia (leitura) | 832 itens, 831 sem patrimônio, nenhum duplicado; um item já tinha o valor `000` e foi mantido |
+| Imagem | `remobs-inventario-backend:prod-2026-09-23-patrimonio-qr` no ECR |
+| Migração | `0007_item_patrimony_unique` aplicada; `REM-000001` a `REM-000831`; nenhum item sem patrimônio |
+| ECS | task definition `remobs-inventario-backend:18` (cópia da `:17`, só a imagem trocada), rollout `COMPLETED`, `/healthz` 200; `InventoryItemUpdate` sem `patrimony_number` no OpenAPI |
+| Amplify | app `d1oidnxd2f4saq`, branch `prod`, job `45` `SUCCEED`, bundle `index-DYl9f8kD.js`, `sw.js` `v21`, `/app/p/REM-000001` respondendo 200 |
+
+Rollback: serviço ECS de volta para `remobs-inventario-backend:17` e republicação do job 44 no Amplify. Os números gerados permanecem no banco; o downgrade da migração só remove o índice único.
