@@ -50,3 +50,13 @@ Decisão do usuário: o admin do inventário (`inventory:movement:approve` ou `*
 - Cache PWA `remobs-inventario-v14`.
 
 Validação: backend 36 testes; frontend `tsc -b` e 53 testes.
+
+Publicado em 2026-09-23, autorizado pelo usuário. Commit `61e4b62`.
+
+| Item | Valor |
+|------|-------|
+| Imagem ECR | `prod-2026-09-23-autoaprovacao` |
+| Task definition | `remobs-inventario-backend:16`, rollout `COMPLETED`, `healthz` 200 |
+| Amplify | job `37` `SUCCEED`, bundle `index-DE2MXnEo.js`, `sw.js` `v14` |
+
+Rollback: serviço ECS para `remobs-inventario-backend:15` e republicação do job 36 no Amplify.

@@ -2,6 +2,9 @@
 
 ## [2026-09-23]
 
+### Publicado — autoaprovação
+- Produção: imagem `prod-2026-09-23-autoaprovacao`, task definition `remobs-inventario-backend:16` (`COMPLETED`), Amplify job `37` `SUCCEED`, cache PWA `v14`.
+
 ### Alterado — autoaprovação
 - O admin do inventário (`inventory:movement:approve` ou `*`) pode aprovar ou recusar o próprio pedido de retirada. O histórico registra `withdrawal_self_approved` ou `withdrawal_self_rejected` com ator, papéis e motivo. Paiol comum continua sem decidir o próprio pedido, e a entrega do próprio pedido segue bloqueada.
 - Lista e detalhe de pedidos explicam por que o botão de aprovar não aparece.
