@@ -38,8 +38,10 @@ export default function AppLayout() {
     ...visibleItems.filter((item) => item.bottom).slice(0, 4),
     { label: "Menu", path: "/app/menu", icon: AppsIcon },
   ];
-  const current = visibleItems.find((item) => location.pathname.startsWith(item.path));
-  const currentBottom = bottomItems.findIndex((item) => location.pathname.startsWith(item.path));
+  // Por segmento: /app/receipts/invoices não pode casar com /app/receipts/invoice.
+  const matches = (path: string) => location.pathname === path || location.pathname.startsWith(`${path}/`);
+  const current = visibleItems.find((item) => matches(item.path));
+  const currentBottom = bottomItems.findIndex((item) => matches(item.path));
 
   const drawer = (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>

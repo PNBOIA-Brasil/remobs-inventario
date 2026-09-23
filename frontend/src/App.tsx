@@ -22,6 +22,7 @@ import MovementsPage from "./pages/MovementsPage";
 import WithdrawalDetailPage from "./pages/WithdrawalDetailPage";
 import ReceiptPage from "./pages/ReceiptPage";
 import InvoiceReceiptPage from "./pages/InvoiceReceiptPage";
+import ReceivedInvoicesPage from "./pages/ReceivedInvoicesPage";
 import PlatformDetailPage from "./pages/PlatformDetailPage";
 import PlatformFormPage from "./pages/PlatformFormPage";
 import PlatformsPage from "./pages/PlatformsPage";
@@ -59,6 +60,7 @@ export default function App() {
           <Route path="withdrawals/:id" element={<WithdrawalDetailPage />} />
           <Route path="receipts/new" element={<ReceiptPage />} />
           <Route path="receipts/invoice" element={<InvoiceReceiptPage />} />
+          <Route path="receipts/invoices" element={<ReceivedInvoicesPage />} />
           <Route path="alerts" element={<AlertsPage />} />
           <Route path="acquisitions" element={<AcquisitionsPage />} />
           <Route path="locations" element={<LocationsPage />} />

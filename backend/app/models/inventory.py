@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import Uuid
 
@@ -120,3 +120,25 @@ class StockMovement(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ReceivedInvoice(Base):
+    """Nota fiscal recebida: cabeçalho conferido pelo usuário. O id é o `invoice_id` dos arquivos
+    (entity_files com entity_type = "invoice") e dos movimentos de entrada."""
+
+    __tablename__ = "received_invoices"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    number: Mapped[str | None] = mapped_column(String(60), nullable=True, index=True)
+    series: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    supplier_name: Mapped[str | None] = mapped_column(String(240), nullable=True, index=True)
+    supplier_cnpj: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    issue_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    total_value: Mapped[float | None] = mapped_column(Numeric(14, 2, asdecimal=False), nullable=True)
+    access_key: Mapped[str | None] = mapped_column(String(60), nullable=True, index=True)
+    origin: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    location_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey(table_ref("locations")), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    received_by_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    received_by_username: Mapped[str] = mapped_column(String(160), nullable=False)
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)

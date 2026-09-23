@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -22,9 +22,15 @@ class ReceiptCreate(BaseModel):
     location_id: uuid.UUID
     notes: str | None = None
     lines: list[ReceiptLineCreate] = Field(min_length=1)
+    # Nota fiscal lida em /receipts/invoice/read: cabeçalho conferido pelo usuário.
     invoice_id: uuid.UUID | None = None
-    invoice_number: str | None = Field(default=None, max_length=160)
+    invoice_number: str | None = Field(default=None, max_length=60)
+    invoice_series: str | None = Field(default=None, max_length=20)
+    supplier_name: str | None = Field(default=None, max_length=240)
     supplier_cnpj: str | None = Field(default=None, max_length=32)
+    issue_date: date | None = None
+    total_value: float | None = Field(default=None, ge=0)
+    access_key: str | None = Field(default=None, max_length=60)
 
 
 class ReceiptRead(BaseModel):
@@ -64,6 +70,45 @@ class InvoiceSuggestion(BaseModel):
     match: Literal["supplier_code", "similar"]
 
 
+class ReceivedInvoiceSummary(BaseModel):
+    id: uuid.UUID
+    number: str | None
+    series: str | None
+    supplier_name: str | None
+    supplier_cnpj: str | None
+    issue_date: date | None
+    total_value: float | None
+    access_key: str | None
+    origin: str | None
+    location_name: str | None
+    notes: str | None
+    received_by_username: str
+    received_at: datetime
+    lines: int
+    units: int
+    files: int
+
+
+class ReceivedInvoiceList(BaseModel):
+    items: list[ReceivedInvoiceSummary]
+    total: int
+
+
+class ReceivedInvoiceItem(BaseModel):
+    item_id: uuid.UUID
+    name: str
+    patrimony_number: str | None
+    item_type: str
+    unit: str
+    quantity: int
+
+
+class ReceivedInvoiceDetail(ReceivedInvoiceSummary):
+    received_items: list[ReceivedInvoiceItem]
+
+
 class InvoiceReadResponse(InvoiceRead):
     invoice_id: uuid.UUID
     suggestions: list[list[InvoiceSuggestion]]
+    # Mesma nota (chave de acesso, ou CNPJ + número) já registrada numa entrada.
+    already_received: ReceivedInvoiceSummary | None = None

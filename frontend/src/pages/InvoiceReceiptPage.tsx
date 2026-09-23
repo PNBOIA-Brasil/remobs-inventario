@@ -299,7 +299,12 @@ export default function InvoiceReceiptPage() {
         lines: [...merged.values()].map(({ item_id, quantity, supplier_code }) => ({ item_id, quantity, ...(supplier_code ? { supplier_code } : {}) })),
         invoice_id: invoice.invoice_id,
         ...(header.number.trim() ? { invoice_number: header.number.trim() } : {}),
+        ...(header.series.trim() ? { invoice_series: header.series.trim() } : {}),
+        ...(header.supplier_name.trim() ? { supplier_name: header.supplier_name.trim() } : {}),
         ...(header.supplier_cnpj.trim() ? { supplier_cnpj: header.supplier_cnpj.trim() } : {}),
+        ...(header.issue_date ? { issue_date: header.issue_date } : {}),
+        ...(header.total_value && Number(header.total_value) >= 0 ? { total_value: Number(header.total_value) } : {}),
+        ...(invoice.access_key ? { access_key: invoice.access_key } : {}),
       });
 
       // Fotos por último: falha numa foto não desfaz a entrada. A resposta traz os itens na ordem das
@@ -460,6 +465,19 @@ export default function InvoiceReceiptPage() {
                 <Stack spacing={2}>
                   <Typography variant="h6">Confira os dados da nota</Typography>
                   <Typography variant="body2" color="text.secondary">Corrija o que estiver diferente do papel.</Typography>
+                  {invoice.already_received && (
+                    <Alert
+                      severity="warning"
+                      action={
+                        <Button color="inherit" size="small" component={RouterLink} to="/app/receipts/invoices">
+                          Ver notas
+                        </Button>
+                      }
+                    >
+                      Esta nota já foi recebida em {new Date(invoice.already_received.received_at).toLocaleString("pt-BR")} por{" "}
+                      {invoice.already_received.received_by_username}. Registrar de novo soma o material outra vez.
+                    </Alert>
+                  )}
                   <TextField label="Fornecedor" value={header.supplier_name} onChange={(e) => setHeader({ ...header, supplier_name: e.target.value })} {...warnField("supplier_name")} />
                   <TextField label="CNPJ" value={header.supplier_cnpj} onChange={(e) => setHeader({ ...header, supplier_cnpj: e.target.value })} {...warnField("supplier_cnpj")} />
                   <Stack direction="row" spacing={2}>

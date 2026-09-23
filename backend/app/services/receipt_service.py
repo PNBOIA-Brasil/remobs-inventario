@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 
 from sqlalchemy import func, select
@@ -8,7 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AppError
 from app.core.security import AuthUser
-from app.models.inventory import InventoryItem, Location, StockBalance, StockMovement
+from app.models.file import EntityFile, FileMetadata
+from app.models.inventory import InventoryItem, Location, ReceivedInvoice, StockBalance, StockMovement
 from app.schemas.receipt import ReceiptCreate
 from app.services.acquisition_service import allocate_receipt
 from app.services.audit_service import log_action
@@ -88,6 +90,27 @@ async def register_receipt(session: AsyncSession, *, user: AuthUser, payload: Re
 
     reason = receipt_reason(payload)
     now = datetime.now(timezone.utc)
+    if payload.invoice_id:
+        if await session.get(ReceivedInvoice, payload.invoice_id):
+            raise AppError("Esta nota fiscal já foi registrada.", code="invoice_already_received", status_code=409)
+        session.add(
+            ReceivedInvoice(
+                id=payload.invoice_id,
+                number=payload.invoice_number,
+                series=payload.invoice_series,
+                supplier_name=payload.supplier_name,
+                supplier_cnpj=payload.supplier_cnpj,
+                issue_date=payload.issue_date,
+                total_value=payload.total_value,
+                access_key=digits(payload.access_key) or None,
+                origin=payload.origin,
+                location_id=location.id,
+                notes=payload.notes,
+                received_by_id=user.id,
+                received_by_username=user.username,
+                received_at=now,
+            )
+        )
     movements: list[StockMovement] = []
     received: list[InventoryItem] = []
     for line in payload.lines:
@@ -157,3 +180,68 @@ async def register_receipt(session: AsyncSession, *, user: AuthUser, payload: Re
             received.append(target)
         await ensure_stock_alert(session, item)
     return movements, received
+
+
+def digits(value: str | None) -> str:
+    return re.sub(r"\D", "", value or "")
+
+
+async def summarize_invoices(session: AsyncSession, invoices: list[ReceivedInvoice]) -> list[dict]:
+    """Cabeçalho + local, linhas, unidades e arquivos de cada nota, em consultas fixas."""
+    ids = [invoice.id for invoice in invoices]
+    if not ids:
+        return []
+    totals = {
+        row.invoice_id: (row.lines, row.units)
+        for row in await session.execute(
+            select(StockMovement.invoice_id, func.count().label("lines"), func.sum(StockMovement.quantity).label("units"))
+            .where(StockMovement.invoice_id.in_(ids))
+            .group_by(StockMovement.invoice_id)
+        )
+    }
+    files = dict(
+        (
+            await session.execute(
+                select(EntityFile.entity_id, func.count())
+                .join(FileMetadata, FileMetadata.id == EntityFile.file_id)
+                .where(EntityFile.entity_type == "invoice", EntityFile.entity_id.in_([str(i) for i in ids]), FileMetadata.deleted_at.is_(None))
+                .group_by(EntityFile.entity_id)
+            )
+        ).all()
+    )
+    locations = {location.id: location.name for location in (await session.execute(select(Location))).scalars()}
+    return [
+        {
+            "id": invoice.id,
+            "number": invoice.number,
+            "series": invoice.series,
+            "supplier_name": invoice.supplier_name,
+            "supplier_cnpj": invoice.supplier_cnpj,
+            "issue_date": invoice.issue_date,
+            "total_value": invoice.total_value,
+            "access_key": invoice.access_key,
+            "origin": invoice.origin,
+            "location_name": locations.get(invoice.location_id),
+            "notes": invoice.notes,
+            "received_by_username": invoice.received_by_username,
+            "received_at": invoice.received_at,
+            "lines": totals.get(invoice.id, (0, 0))[0],
+            "units": int(totals.get(invoice.id, (0, 0))[1] or 0),
+            "files": files.get(str(invoice.id), 0),
+        }
+        for invoice in invoices
+    ]
+
+
+async def find_already_received(session: AsyncSession, *, access_key: str | None, cnpj: str | None, number: str | None) -> ReceivedInvoice | None:
+    """Mesma nota já registrada: pela chave de acesso ou, sem ela, por CNPJ + número (só dígitos)."""
+    key, cnpj_digits, number_digits = digits(access_key), digits(cnpj), digits(number).lstrip("0")
+    if len(key) == 44:
+        found = await session.scalar(select(ReceivedInvoice).where(ReceivedInvoice.access_key == key))
+        if found:
+            return found
+    if not (cnpj_digits and number_digits):
+        return None
+    candidates = (await session.execute(select(ReceivedInvoice).where(ReceivedInvoice.supplier_cnpj.is_not(None)))).scalars()
+    # ponytail: filtra em Python pelos dígitos (CNPJ e número chegam formatados de jeitos diferentes).
+    return next((c for c in candidates if digits(c.supplier_cnpj) == cnpj_digits and digits(c.number).lstrip("0") == number_digits), None)

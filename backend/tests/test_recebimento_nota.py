@@ -147,3 +147,43 @@ def test_nota_fica_guardada_e_baixa_pelo_movimento(client: TestClient, monkeypat
     assert download.status_code == 200 and download.content == page
     assert "attachment" in download.headers["content-disposition"]
     assert client.get(f"/inventory/receipts/invoices/{uuid.uuid4()}/files", headers=REQUESTER).json()["total"] == 0
+
+
+def test_lista_notas_recebidas_com_detalhe_e_aviso_de_repetida(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    tag = uuid.uuid4().hex[:8]
+    cnpj = f"{uuid.uuid4().int % 10**14:014d}"
+    consumivel, loc = _item(client, quantity=0)
+    permanente, _ = _item(client, quantity=1, item_type="permanent_component")
+    monkeypatch.setattr(
+        receipts, "read_invoice", lambda files: InvoiceRead(number="004.521", supplier_cnpj=cnpj, lines=[{"description": "X", "quantity": 1}])
+    )
+    upload = {"files": ("nf.png", _png(), "image/png")}
+    first = client.post("/inventory/receipts/invoice/read", headers=PAIOL, files=upload).json()
+    assert first["already_received"] is None
+
+    header = {
+        "invoice_id": first["invoice_id"],
+        "invoice_number": "004.521",
+        "invoice_series": "1",
+        "supplier_name": f"Fornecedor {tag}",
+        "supplier_cnpj": cnpj,
+        "issue_date": "2026-09-18",
+        "total_value": 3412.4,
+    }
+    _receipt(client, loc, [{"item_id": consumivel, "quantity": 5}, {"item_id": permanente, "quantity": 2}], **header)
+    again = client.post("/inventory/receipts", headers=PAIOL, json={"origin": "compra", "location_id": loc, "lines": [{"item_id": consumivel, "quantity": 1}], **header})
+    assert again.status_code == 409
+
+    listed = client.get("/inventory/receipts/invoices", headers=REQUESTER)
+    assert listed.status_code == 200, listed.text
+    [row] = [entry for entry in listed.json()["items"] if entry["supplier_name"] == f"Fornecedor {tag}"]
+    assert (row["number"], row["total_value"], row["lines"], row["units"], row["files"], row["location_name"]) == ("004.521", 3412.4, 3, 7, 1, "Paiol fluxo")
+
+    detail = client.get(f"/inventory/receipts/invoices/{row['id']}", headers=REQUESTER).json()
+    assert sorted(entry["quantity"] for entry in detail["received_items"]) == [1, 1, 5]
+    assert client.get(f"/inventory/receipts/invoices/{uuid.uuid4()}", headers=REQUESTER).status_code == 404
+
+    # Mesma nota lida de novo, com número formatado diferente: avisa que já foi recebida.
+    monkeypatch.setattr(receipts, "read_invoice", lambda files: InvoiceRead(number="4521", supplier_cnpj=cnpj, lines=[]))
+    repeated = client.post("/inventory/receipts/invoice/read", headers=PAIOL, files=upload).json()
+    assert repeated["already_received"]["id"] == row["id"]

@@ -5,19 +5,21 @@ import uuid
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile, status
 from fastapi.responses import Response
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_async_session
 from app.core.errors import AppError
 from app.core.permissions import require_any_permission, require_permissions
 from app.core.security import AuthUser
+from app.models.inventory import InventoryItem, ReceivedInvoice, StockMovement
 from app.schemas.file import EntityFileListRead, EntityFileRead
-from app.schemas.receipt import InvoiceReadResponse, ReceiptCreate, ReceiptRead
+from app.schemas.receipt import InvoiceReadResponse, ReceiptCreate, ReceiptRead, ReceivedInvoiceDetail, ReceivedInvoiceList
 from app.services import file_storage
 from app.services.file_service import attach_upload, get_entity_file_or_404, list_entity_files
 from app.services.inventory_service import get_item_or_404, serialize_items_bulk, serialize_movement
 from app.services.invoice_reader import read_invoice, suggest_items
-from app.services.receipt_service import register_receipt
+from app.services.receipt_service import find_already_received, register_receipt, summarize_invoices
 
 router = APIRouter(prefix="/inventory", tags=["receipts"])
 
@@ -69,8 +71,14 @@ async def read_receipt_invoice(
             content=content,
         )
     suggestions = await suggest_items(session, invoice)
+    previous = await find_already_received(session, access_key=invoice.access_key, cnpj=invoice.supplier_cnpj, number=invoice.number)
     await session.commit()
-    return {**invoice.model_dump(), "invoice_id": invoice_id, "suggestions": suggestions}
+    return {
+        **invoice.model_dump(),
+        "invoice_id": invoice_id,
+        "suggestions": suggestions,
+        "already_received": (await summarize_invoices(session, [previous]))[0] if previous else None,
+    }
 
 
 @router.post("/receipts/photos", response_model=EntityFileRead, status_code=status.HTTP_201_CREATED)
@@ -124,3 +132,45 @@ async def download_invoice_file(
     )
     headers = {"Content-Disposition": f'attachment; filename="{file_meta.original_name}"'}
     return Response(content=file_storage.read_bytes(file_meta.storage_key), media_type=file_meta.mime_type, headers=headers)
+
+
+@router.get("/receipts/invoices", response_model=ReceivedInvoiceList)
+async def list_received_invoices(
+    user: AuthUser = Depends(require_permissions(["inventory:item:read"])),
+    session: AsyncSession = Depends(get_async_session),
+) -> dict:
+    """Notas fiscais recebidas, da mais recente para a mais antiga."""
+    # ponytail: teto de 500 notas sem paginação nem busca no servidor; a tela filtra. Paginar quando passar disso.
+    query = select(ReceivedInvoice).order_by(ReceivedInvoice.received_at.desc()).limit(500)
+    items = await summarize_invoices(session, list((await session.execute(query)).scalars()))
+    return {"items": items, "total": len(items)}
+
+
+@router.get("/receipts/invoices/{invoice_id}", response_model=ReceivedInvoiceDetail)
+async def get_received_invoice(
+    invoice_id: uuid.UUID,
+    user: AuthUser = Depends(require_permissions(["inventory:item:read"])),
+    session: AsyncSession = Depends(get_async_session),
+) -> dict:
+    invoice = await session.get(ReceivedInvoice, invoice_id)
+    if not invoice:
+        raise AppError("Nota fiscal não encontrada.", code="invoice_not_found", status_code=404)
+    [summary] = await summarize_invoices(session, [invoice])
+    rows = await session.execute(
+        select(StockMovement, InventoryItem)
+        .join(InventoryItem, InventoryItem.id == StockMovement.item_id)
+        .where(StockMovement.invoice_id == invoice_id)
+        .order_by(StockMovement.created_at, InventoryItem.name)
+    )
+    summary["received_items"] = [
+        {
+            "item_id": item.id,
+            "name": item.name,
+            "patrimony_number": item.patrimony_number,
+            "item_type": item.item_type,
+            "unit": item.unit,
+            "quantity": movement.quantity,
+        }
+        for movement, item in rows
+    ]
+    return summary

@@ -2,6 +2,12 @@
 
 ## [2026-09-23]
 
+### Adicionado — tela de notas fiscais recebidas
+- Nova tela "Notas fiscais" (`/app/receipts/invoices`, grupo Estoque) lista as notas recebidas, da mais recente para a mais antiga, com busca por número, fornecedor, CNPJ ou chave de acesso. Cada nota mostra total, fornecedor, data, quem recebeu, local, unidades e se houve divergência; ao abrir, traz CNPJ, emissão, chave, observações, o botão "Baixar nota fiscal" e os itens recebidos, com link para a ficha de cada um.
+- O cabeçalho conferido da nota passa a ser gravado ao registrar a entrada. A mesma nota não pode ser registrada duas vezes e, ao ler uma nota já recebida, a etapa Dados avisa quando e por quem ela entrou.
+- O item ativo do menu passa a ser identificado por segmento de caminho.
+- Backend: migração `0009_received_invoices` (com preenchimento das entradas por nota já feitas), rotas `GET /inventory/receipts/invoices` e `GET /inventory/receipts/invoices/{id}`, campo `already_received` na leitura e novos campos de cabeçalho na entrada. Cache PWA `remobs-inventario-v25`. Plano: `planos/2026-09-23-lista-notas-fiscais.md`.
+
 ### Publicado — unidade nova por peça e download da nota fiscal
 - Produção: migração `0008_movement_invoice` aplicada, backend na task definition `remobs-inventario-backend:20` (imagem `prod-2026-09-23-nota-fiscal-unidades`) e frontend no Amplify job `48` `SUCCEED`, bundle `index-FYKvn8Jd.js`, cache PWA `v24`.
 - Rollback: ECS de volta para `remobs-inventario-backend:19` e republicação do job 47 no Amplify; a coluna `invoice_id` pode ficar.

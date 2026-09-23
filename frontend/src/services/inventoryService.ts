@@ -62,7 +62,35 @@ export interface ReceiptPayload {
   lines: Array<{ item_id: string; quantity: number; supplier_code?: string }>;
   invoice_id?: string;
   invoice_number?: string;
+  invoice_series?: string;
+  supplier_name?: string;
   supplier_cnpj?: string;
+  issue_date?: string;
+  total_value?: number;
+  access_key?: string;
+}
+
+export interface ReceivedInvoice {
+  id: string;
+  number: string | null;
+  series: string | null;
+  supplier_name: string | null;
+  supplier_cnpj: string | null;
+  issue_date: string | null;
+  total_value: number | null;
+  access_key: string | null;
+  origin: string | null;
+  location_name: string | null;
+  notes: string | null;
+  received_by_username: string;
+  received_at: string;
+  lines: number;
+  units: number;
+  files: number;
+}
+
+export interface ReceivedInvoiceDetail extends ReceivedInvoice {
+  received_items: Array<{ item_id: string; name: string; patrimony_number: string | null; item_type: string; unit: string; quantity: number }>;
 }
 
 export interface ReceiptResult {
@@ -103,6 +131,7 @@ export interface InvoiceReadResult {
   lines: InvoiceLine[];
   uncertain_fields: string[];
   suggestions: Array<Array<{ item_id: string; score: number; match: "supplier_code" | "similar" }>>;
+  already_received: ReceivedInvoice | null;
 }
 
 export interface ChecklistPayload {
@@ -312,6 +341,16 @@ export const inventoryService = {
     files.forEach((file) => formData.append("files", file));
     // O modelo de visão leva de 10 a 40 s por nota.
     const response = await inventoryApi.post<InvoiceReadResult>("/inventory/receipts/invoice/read", formData, { timeout: 120000 });
+    return response.data;
+  },
+
+  async listReceivedInvoices(): Promise<ApiList<ReceivedInvoice>> {
+    const response = await inventoryApi.get<ApiList<ReceivedInvoice>>("/inventory/receipts/invoices");
+    return response.data;
+  },
+
+  async getReceivedInvoice(id: string): Promise<ReceivedInvoiceDetail> {
+    const response = await inventoryApi.get<ReceivedInvoiceDetail>(`/inventory/receipts/invoices/${id}`);
     return response.data;
   },
 

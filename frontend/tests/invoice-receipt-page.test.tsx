@@ -39,6 +39,7 @@ describe("recebimento por nota fiscal", () => {
       lines: [{ supplier_code: "88103", description: "BATERIA 12V", unit: "UN", quantity: 2, unit_value: 389, total_value: 778, ncm: null }],
       uncertain_fields: [],
       suggestions: [[{ item_id: "bat", score: 0.9, match: "similar" }]],
+      already_received: null,
     });
     const register = vi.spyOn(inventoryService, "registerReceipt").mockResolvedValue({ movements: [], total_quantity: 2, items: [unit("2"), unit("3")] });
     const photo = vi.spyOn(inventoryService, "uploadReceiptPhoto").mockResolvedValue({} as never);
@@ -69,6 +70,10 @@ describe("recebimento por nota fiscal", () => {
         expect.objectContaining({
           invoice_id: "nf-1",
           invoice_number: "4521",
+          invoice_series: "1",
+          supplier_name: "Fornecedor",
+          issue_date: "2026-09-18",
+          total_value: 778,
           supplier_cnpj: "12.345.678/0001-90",
           lines: [{ item_id: "bat", quantity: 2, supplier_code: "88103" }],
         }),
