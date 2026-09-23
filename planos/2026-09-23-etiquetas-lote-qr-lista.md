@@ -33,4 +33,8 @@ O detalhe do item já imprime a etiqueta individual (62 × 29 mm) com o QR Code 
 
 ## Resultado
 
-Implementado e validado localmente. Commit e publicação aguardam confirmação do usuário.
+Implementado e validado localmente. Commit `3d183ec`.
+
+Deploy autorizado pelo usuário em 2026-09-23 (profile `aws-remobs`, conta `220790920077`, `sa-east-1`), somente frontend: Amplify app `d1oidnxd2f4saq`, branch `prod`, job `46` `SUCCEED`, bundle `index-C0ffVh9a.js`, `sw.js` `v22`, `/app/inventory` respondendo 200. Backend e banco sem alteração.
+
+Rollback: republicação do job 45 no Amplify.

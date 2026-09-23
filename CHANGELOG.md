@@ -2,6 +2,9 @@
 
 ## [2026-09-23]
 
+### Publicado — folha A4 de etiquetas e QR Code na lista de itens
+- Produção: somente frontend, Amplify job `46` `SUCCEED`, bundle `index-C0ffVh9a.js`, cache PWA `v22`. Backend e banco sem alteração. Rollback: republicar o job 45 no Amplify.
+
 ### Adicionado — folha A4 de etiquetas e QR Code na lista de itens
 - A lista de itens mostra o QR Code e o número patrimonial de cada item.
 - Na lista, os itens podem ser selecionados um a um ou todos os visíveis (respeitando busca e filtro), e o botão "Imprimir etiquetas" gera uma folha A4 com 27 etiquetas de 62 × 29 mm por página (3 × 9), com linha de corte tracejada.
