@@ -7,6 +7,7 @@ import HubIcon from "@mui/icons-material/Hub";
 import InventoryIcon from "@mui/icons-material/Inventory2";
 import MoveToInboxIcon from "@mui/icons-material/MoveToInbox";
 import PlaceIcon from "@mui/icons-material/Place";
+import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import SensorsIcon from "@mui/icons-material/Sensors";
 import SyncIcon from "@mui/icons-material/Sync";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
@@ -33,6 +34,7 @@ export const navigationItems: NavigationItem[] = [
   { label: "Início", path: "/app/home", icon: DashboardIcon, permissions: [], group: "Operação", bottom: true },
   { label: "Pedidos", path: "/app/movements", icon: AssignmentTurnedInIcon, permissions: [...REQUEST_PERMISSIONS, ...PAIOL_PERMISSIONS], group: "Operação", bottom: true },
   { label: "Receber material", path: "/app/receipts/new", icon: MoveToInboxIcon, permissions: RECEIPT_PERMISSIONS, group: "Operação", bottom: false },
+  { label: "Receber por nota fiscal", path: "/app/receipts/invoice", icon: ReceiptLongIcon, permissions: RECEIPT_PERMISSIONS, group: "Operação", bottom: false },
   { label: "Escanear", path: "/app/scan", icon: QrCodeScannerIcon, permissions: ["inventory:item:read"], group: "Operação", bottom: true },
   { label: "Itens e saldos", path: "/app/inventory", icon: InventoryIcon, permissions: ["inventory:item:read"], group: "Estoque", bottom: true },
   { label: "Alertas", path: "/app/alerts", icon: WarningAmberIcon, permissions: ["inventory:item:read"], group: "Estoque", bottom: false },

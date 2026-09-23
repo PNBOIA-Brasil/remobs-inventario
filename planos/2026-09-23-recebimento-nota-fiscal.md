@@ -1,0 +1,58 @@
+# Recebimento de material por nota fiscal
+
+## Contexto
+
+O recebimento (`/app/receipts/new`) exigia digitar cada material da nota. O usuário pediu que a nota fiscal, em foto ou PDF, fosse lida pelo sistema e que os itens fossem incluídos em etapas, com a confirmação do usuário na identificação de cada item e foto opcional do material.
+
+A prévia de design foi aprovada no canvas "Recebimento por Nota Fiscal" (7 telas mobile e 1 desktop).
+
+## Objetivo
+
+Receber o material a partir da nota fiscal em quatro etapas — Nota, Dados, Itens e Revisão — com leitura automática, sugestão do item do estoque, conferência item a item, foto opcional e registro da entrada com as divergências.
+
+## Decisões
+
+- **Leitura por IA na AWS.** O usuário pediu a conta de IA (`aws-remobs-ia`, `543483798724`, `sa-east-1`). Claude não está liberado nessa conta; foi escolhido o modelo de visão `qwen.qwen3-vl-235b-a22b` (on-demand em `sa-east-1`), chamado pela Converse API do Bedrock. O modelo fica configurável em `REMOBS_INVOICE_AI_MODEL_ID`.
+- **PDF vira imagem no backend.** O Qwen3-VL não aceita documento na Converse API; o backend renderiza cada página do PDF com `pypdfium2` e reduz fotos e páginas a JPEG de até 2000 px com `Pillow` (o Bedrock recusa imagens acima de 3,75 MB). Novas dependências de backend: `pypdfium2` e `Pillow`.
+- **Acesso entre contas.** O backend roda na conta `220790920077` e assume a role `remobs-inventario-invoice-reader` da conta de IA (`REMOBS_INVOICE_AI_ROLE_ARN`), sem chave estática.
+- **Quantidade conferida.** A nota usa vírgula decimal ("50,000" = 50). O prompt explica o formato e, quando a quantidade não fecha com valor total ÷ valor unitário, o backend recalcula.
+- **Sugestões.** Similaridade de texto (stdlib `difflib` e palavras em comum) com o nome dos itens ativos, uma sugestão por nome. O código do produto do fornecedor fica gravado no log de auditoria da entrada; na próxima nota do mesmo CNPJ, o item vinculado aparece primeiro como "Já vinculado". Não foi criada tabela nova nem migração.
+- **Arquivos da nota.** Os arquivos lidos ficam guardados como `entity_type = invoice` e o `invoice_id` vai para os metadados da entrada. Leituras abandonadas também ficam guardadas.
+- **Foto do recebimento.** Nova rota `POST /inventory/receipts/photos`, só para imagem e com as permissões de recebimento, para que o paiol (que entrega mas não edita item) possa anexar a foto.
+- **Divergências.** Quantidade diferente da nota e "Item não veio" entram no texto da entrada ("Divergências: …"), visível no histórico de movimentos.
+
+## Escopo
+
+Backend:
+
+- `app/services/invoice_reader.py`: páginas em JPEG, chamada ao Bedrock, validação da resposta, conferência de quantidade e sugestões.
+- `app/routers/receipts.py`: `POST /inventory/receipts/invoice/read` e `POST /inventory/receipts/photos`.
+- `app/schemas/receipt.py`: `InvoiceRead`, `InvoiceReadResponse`; `ReceiptCreate` com `invoice_id`, `supplier_cnpj` e `supplier_code` por linha.
+- `app/services/receipt_service.py`: metadados da nota na auditoria.
+- `app/core/config.py`: `invoice_ai_model_id`, `invoice_ai_region`, `invoice_ai_role_arn`.
+
+Frontend:
+
+- `pages/InvoiceReceiptPage.tsx` em `/app/receipts/invoice`, com o item de menu "Receber por nota fiscal".
+- `services/inventoryService.ts`: `readInvoice` e `uploadReceiptPhoto`.
+- Cache PWA `remobs-inventario-v23`.
+
+## Etapas
+
+1. Prévia de design no canvas e aprovação do usuário.
+2. Teste do modelo no Bedrock com uma DANFE sintética (PNG e PDF).
+3. Backend, testes e conferência de quantidade.
+4. Assistente no frontend.
+5. Teste ponta a ponta local com o Bedrock real.
+6. IAM entre contas, deploy do backend (ECS) e do frontend (Amplify).
+
+## Validações
+
+- Backend: 44 testes aprovados; o arquivo novo `tests/test_recebimento_nota.py` cobre páginas JPEG, resposta do modelo, conferência de quantidade, permissões, sugestões, vínculo aprendido e foto só de imagem.
+- Frontend: `tsc -b` e `npm run build` sem erro.
+- Bedrock real (`aws-remobs-ia`): a DANFE sintética em PNG foi lida em 13,6 s e em PDF em 11,6 s, com cabeçalho, 6 de 6 linhas e quantidades corretas.
+- Teste ponta a ponta local (backend com cópia do `dev.sqlite`, Bedrock real e auth simulado): leitura, conferência com foto, busca, item novo, "Item não veio", divergência, registro, foto anexada, arquivos da nota guardados e, na segunda leitura, sugestão "Já vinculado".
+
+## Resultado
+
+Implementado e validado localmente. Deploy registrado abaixo.

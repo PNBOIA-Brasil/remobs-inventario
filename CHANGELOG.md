@@ -2,6 +2,13 @@
 
 ## [2026-09-23]
 
+### Adicionado — recebimento de material por nota fiscal
+- Nova tela "Receber por nota fiscal" (`/app/receipts/invoice`), em quatro etapas: envio da nota (foto pela câmera, várias páginas ou PDF), conferência dos dados lidos (fornecedor, CNPJ, número, série, emissão e total, com destaque para leitura incerta), conferência item a item e revisão.
+- Em cada item, o sistema mostra a linha lida da nota e sugere o item do estoque. O usuário confirma a sugestão, busca outro item ou cadastra um novo já preenchido com os dados da nota, ajusta a quantidade recebida e pode tirar foto do material (opcional). "Item não veio" registra a falta.
+- Quantidade diferente da nota e itens que não vieram entram como divergências no texto da entrada. A nota fica guardada e ligada à entrada. No desktop, a nota aparece ao lado da conferência.
+- O código do produto do fornecedor é memorizado: na próxima nota do mesmo CNPJ, o item já vinculado aparece primeiro.
+- Backend: `POST /inventory/receipts/invoice/read` (leitura pelo modelo de visão `qwen.qwen3-vl-235b-a22b` no Amazon Bedrock da conta de IA, via role entre contas) e `POST /inventory/receipts/photos` (foto do recebimento, só imagem, com as permissões de recebimento). A entrada aceita `invoice_id`, `supplier_cnpj` e `supplier_code` por linha. Novas dependências `pypdfium2` e `Pillow`; novas variáveis `REMOBS_INVOICE_AI_MODEL_ID`, `REMOBS_INVOICE_AI_REGION` e `REMOBS_INVOICE_AI_ROLE_ARN`. Sem migração. Cache PWA `remobs-inventario-v23`. Plano: `planos/2026-09-23-recebimento-nota-fiscal.md`.
+
 ### Publicado — folha A4 de etiquetas e QR Code na lista de itens
 - Produção: somente frontend, Amplify job `46` `SUCCEED`, bundle `index-C0ffVh9a.js`, cache PWA `v22`. Backend e banco sem alteração. Rollback: republicar o job 45 no Amplify.
 

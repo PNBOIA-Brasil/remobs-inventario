@@ -10,6 +10,7 @@ __pycache__/
 
 # Uploaded files (local storage)
 backend/storage/
+backend/tests/test_storage/
 
 # Build outputs
 dist/

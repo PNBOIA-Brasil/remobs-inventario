@@ -1,4 +1,4 @@
-const CACHE_NAME = "remobs-inventario-v22";
+const CACHE_NAME = "remobs-inventario-v23";
 const STATIC_ASSETS = ["/", "/manifest.webmanifest", "/remobs-icon.svg"];
 
 self.addEventListener("install", (event) => {

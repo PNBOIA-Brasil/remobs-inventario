@@ -59,7 +59,33 @@ export interface ReceiptPayload {
   document?: string;
   location_id: string;
   notes?: string;
-  lines: Array<{ item_id: string; quantity: number }>;
+  lines: Array<{ item_id: string; quantity: number; supplier_code?: string }>;
+  invoice_id?: string;
+  supplier_cnpj?: string;
+}
+
+export interface InvoiceLine {
+  supplier_code: string | null;
+  description: string;
+  unit: string | null;
+  quantity: number;
+  unit_value: number | null;
+  total_value: number | null;
+  ncm: string | null;
+}
+
+export interface InvoiceReadResult {
+  invoice_id: string;
+  supplier_name: string | null;
+  supplier_cnpj: string | null;
+  number: string | null;
+  series: string | null;
+  issue_date: string | null;
+  total_value: number | null;
+  access_key: string | null;
+  lines: InvoiceLine[];
+  uncertain_fields: string[];
+  suggestions: Array<Array<{ item_id: string; score: number; match: "supplier_code" | "similar" }>>;
 }
 
 export interface ChecklistPayload {
@@ -261,6 +287,22 @@ export const inventoryService = {
 
   async rejectMovement(id: string, reason: string): Promise<Movement> {
     const response = await inventoryApi.post<Movement>(`/inventory/movements/${id}/reject`, { reason });
+    return response.data;
+  },
+
+  async readInvoice(files: File[]): Promise<InvoiceReadResult> {
+    const formData = new FormData();
+    files.forEach((file) => formData.append("files", file));
+    // O modelo de visão leva de 10 a 40 s por nota.
+    const response = await inventoryApi.post<InvoiceReadResult>("/inventory/receipts/invoice/read", formData, { timeout: 120000 });
+    return response.data;
+  },
+
+  async uploadReceiptPhoto(itemId: string, file: File): Promise<EntityFile> {
+    const formData = new FormData();
+    formData.append("item_id", itemId);
+    formData.append("file", file);
+    const response = await inventoryApi.post<EntityFile>("/inventory/receipts/photos", formData);
     return response.data;
   },
 

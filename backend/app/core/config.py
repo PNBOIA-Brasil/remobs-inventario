@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     storage_s3_region: str = "sa-east-1"
     storage_s3_prefix: str = "remobs-inventario"
 
+    # Leitura de nota fiscal por modelo de visão no Bedrock (conta de IA, acesso via role entre contas).
+    invoice_ai_model_id: str = "qwen.qwen3-vl-235b-a22b"
+    invoice_ai_region: str = "sa-east-1"
+    invoice_ai_role_arn: str = ""
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]

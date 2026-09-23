@@ -77,6 +77,9 @@ async def register_receipt(session: AsyncSession, *, user: AuthUser, payload: Re
                 "origin": payload.origin,
                 "document": payload.document,
                 "acquisition_ids": [str(need.id) for need in fulfilled],
+                "invoice_id": str(payload.invoice_id) if payload.invoice_id else None,
+                "supplier_cnpj": payload.supplier_cnpj,
+                "supplier_code": line.supplier_code,
             },
         )
         movements.append(movement)
