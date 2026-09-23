@@ -24,3 +24,12 @@ Exibir carregamento e bloquear as ações do diálogo enquanto a requisição es
 
 ## Resultado
 Implementado. Sem mudança de contrato com o backend.
+
+## Publicação
+Publicado em 2026-09-23, autorizado pelo usuário. Commit `574514e`. Somente frontend; backend inalterado.
+
+| Item | Valor |
+|------|-------|
+| Amplify | app `d1oidnxd2f4saq`, branch `prod`, job `39` `SUCCEED`, bundle `index-BC-F6sm7.js`, `sw.js` `v16` |
+
+Rollback: republicação do job 38 no Amplify.
