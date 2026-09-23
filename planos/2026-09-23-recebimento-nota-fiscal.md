@@ -55,4 +55,17 @@ Frontend:
 
 ## Resultado
 
-Implementado e validado localmente. Deploy registrado abaixo.
+Implementado e validado localmente. Commit `b3e619e`.
+
+Deploy autorizado pelo usuário em 2026-09-23:
+
+| Etapa | Resultado |
+| :--- | :--- |
+| IAM na conta de IA (`aws-remobs-ia`, `543483798724`) | role `remobs-inventario-invoice-reader`, confiança só na task role do backend, política inline `bedrock-invoke-qwen3-vl` (só `bedrock:InvokeModel` no `qwen.qwen3-vl-235b-a22b` em `sa-east-1`) |
+| IAM na conta do app (`aws-remobs`, `220790920077`) | política inline `assume-invoice-reader-ia` na `remobs-inventario-backend-task-role` (só `sts:AssumeRole` na role acima) |
+| Imagem | `remobs-inventario-backend:prod-2026-09-23-nota-fiscal` no ECR |
+| ECS | task definition `remobs-inventario-backend:19` (cópia da `:18` com a imagem nova e as variáveis `REMOBS_INVOICE_AI_*`), rollout `COMPLETED`, `/healthz` 200, rotas novas no OpenAPI e `401` sem token |
+| Teste em produção | task avulsa com a `:19` leu uma nota de teste pelo Bedrock via role entre contas (`SMOKE 000123 1 [('CABO PP 3X2,5MM RL', 2.0)]`), sem tocar no banco |
+| Amplify | app `d1oidnxd2f4saq`, branch `prod`, job `47` `SUCCEED`, bundle `index-CQS0u9we.js`, `sw.js` `v23`, `/app/receipts/invoice` 200 |
+
+Sem migração de banco. Rollback: serviço ECS de volta para `remobs-inventario-backend:18` e republicação do job 46 no Amplify. As políticas IAM podem ficar; sem elas, só a leitura da nota falha (erro 502 tratado na tela).

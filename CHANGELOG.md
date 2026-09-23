@@ -2,6 +2,11 @@
 
 ## [2026-09-23]
 
+### Publicado — recebimento de material por nota fiscal
+- Produção: backend na task definition `remobs-inventario-backend:19` (imagem `prod-2026-09-23-nota-fiscal`) e frontend no Amplify job `47` `SUCCEED`, bundle `index-CQS0u9we.js`, cache PWA `v23`. Sem migração.
+- IAM: role `remobs-inventario-invoice-reader` na conta de IA (`543483798724`), só com `bedrock:InvokeModel` no Qwen3-VL, e permissão de assumi-la na task role do backend. Leitura validada em produção por uma task avulsa.
+- Rollback: ECS de volta para `remobs-inventario-backend:18` e republicação do job 46 no Amplify.
+
 ### Adicionado — recebimento de material por nota fiscal
 - Nova tela "Receber por nota fiscal" (`/app/receipts/invoice`), em quatro etapas: envio da nota (foto pela câmera, várias páginas ou PDF), conferência dos dados lidos (fornecedor, CNPJ, número, série, emissão e total, com destaque para leitura incerta), conferência item a item e revisão.
 - Em cada item, o sistema mostra a linha lida da nota e sugere o item do estoque. O usuário confirma a sugestão, busca outro item ou cadastra um novo já preenchido com os dados da nota, ajusta a quantidade recebida e pode tirar foto do material (opcional). "Item não veio" registra a falta.
