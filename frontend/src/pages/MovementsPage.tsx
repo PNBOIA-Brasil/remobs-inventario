@@ -64,13 +64,18 @@ export default function MovementsPage() {
     return user?.id !== order.requested_by_id;
   }
 
+  // Admin do inventário pode aprovar o próprio pedido (fica registrado como autoaprovação).
+  const isInventoryAdmin = hasAnyPermission("inventory:movement:approve");
+  const canApprove = (order: WithdrawalOrder) =>
+    order.status === "pending_approval" && hasAnyPermission(...APPROVE_PERMISSIONS) && (canDecide(order) || isInventoryAdmin);
+
   const mine = orders.filter((order) => order.requested_by_id === user?.id);
   const others = orders.filter((order) => order.requested_by_id !== user?.id);
   const hasPendingEvent = (order: WithdrawalOrder) => order.events.some((event) => event.status === "pending");
   const tabs: OrderTab[] = [
     ...(isPaiol
       ? [
-          { id: "aprovar", label: "Aprovar", orders: others.filter((order) => order.status === "pending_approval") },
+          { id: "aprovar", label: "Aprovar", orders: orders.filter(canApprove) },
           { id: "entregar", label: "Entregar", orders: others.filter((order) => order.status === "approved") },
           { id: "devolucoes", label: "Devoluções", orders: others.filter(hasPendingEvent) },
         ]
@@ -169,7 +174,12 @@ export default function MovementsPage() {
               {hasPendingEvent(order) && <Alert severity="warning">Devolução ou baixa aguardando conferência.</Alert>}
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                 <Button onClick={() => navigate(`/app/withdrawals/${order.id}`)}>Abrir pedido</Button>
-                {order.status === "pending_approval" && hasAnyPermission(...APPROVE_PERMISSIONS) && canDecide(order) && (
+                {order.status === "pending_approval" && !canApprove(order) && (
+                  <Typography variant="body2" color="text.secondary" sx={{ alignSelf: "center" }}>
+                    {canDecide(order) ? "Aguardando o paiol ou o admin do inventário." : "Aguardando outro aprovador: você não aprova o próprio pedido."}
+                  </Typography>
+                )}
+                {canApprove(order) && (
                   <>
                     <Button variant="contained" onClick={() => setPending({ kind: "withdrawal", id: order.id, action: "approve" })}>Aprovar</Button>
                     <Button variant="outlined" color="error" onClick={() => setPending({ kind: "withdrawal", id: order.id, action: "reject" })}>Recusar</Button>

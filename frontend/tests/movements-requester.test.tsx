@@ -73,5 +73,6 @@ describe("fila do solicitante", () => {
     expect(screen.queryByRole("button", { name: "Aprovar" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Recusar" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Entregar" })).toBeNull();
+    expect(screen.getByText(/Aguardando outro aprovador/)).toBeTruthy();
   });
 });

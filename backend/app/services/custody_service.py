@@ -51,6 +51,16 @@ def _deny_self(user: AuthUser, requester_id: int) -> None:
         )
 
 
+def _self_approval(user: AuthUser, requester_id: int) -> bool:
+    """Admin do inventário pode decidir o próprio pedido; os demais, não. Retorna se é autoaprovação."""
+    if user.id != requester_id:
+        return False
+    if "*" in user.permissions or "inventory:movement:approve" in user.permissions:
+        return True
+    _deny_self(user, requester_id)
+    return False
+
+
 def _require_permission(user: AuthUser, code: str) -> None:
     if "*" in user.permissions or code in user.permissions:
         return
@@ -449,7 +459,7 @@ async def approve_withdrawal(
     Se todas as linhas forem recusadas, o pedido inteiro fica recusado.
     """
     order = await _order_or_404(session, order_id)
-    _deny_self(user, order.requested_by_id)
+    self_decision = _self_approval(user, order.requested_by_id)
     if order.status != "pending_approval":
         raise AppError("Pedido não está pendente de aprovação.", code="withdrawal_not_pending", status_code=409)
     before = await serialize_order(session, order, include_details=False)
@@ -487,7 +497,8 @@ async def approve_withdrawal(
     await log_action(
         session,
         actor=user,
-        action="withdrawal_rejected" if all_rejected else "withdrawal_approved",
+        action=("withdrawal_self_rejected" if all_rejected else "withdrawal_self_approved") if self_decision
+        else ("withdrawal_rejected" if all_rejected else "withdrawal_approved"),
         entity_type="withdrawal_order",
         entity_id=str(order.id),
         entity_label_snapshot=order.requested_by_username,
@@ -500,7 +511,7 @@ async def approve_withdrawal(
 
 async def reject_withdrawal(session: AsyncSession, *, user: AuthUser, order_id: uuid.UUID, reason: str) -> WithdrawalOrder:
     order = await _order_or_404(session, order_id)
-    _deny_self(user, order.requested_by_id)
+    self_decision = _self_approval(user, order.requested_by_id)
     if order.status != "pending_approval":
         raise AppError("Pedido não está pendente de aprovação.", code="withdrawal_not_pending", status_code=409)
     before = await serialize_order(session, order, include_details=False)
@@ -515,7 +526,7 @@ async def reject_withdrawal(session: AsyncSession, *, user: AuthUser, order_id: 
     await log_action(
         session,
         actor=user,
-        action="withdrawal_rejected",
+        action="withdrawal_self_rejected" if self_decision else "withdrawal_rejected",
         entity_type="withdrawal_order",
         entity_id=str(order.id),
         entity_label_snapshot=order.requested_by_username,

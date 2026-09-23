@@ -276,7 +276,7 @@ def test_busca_de_itens_acha_por_patrimonio_e_serie(client: TestClient) -> None:
         assert [item["id"] for item in found] == [item_id]
 
 
-def test_admin_do_inventario_ve_e_aprova_pedido_de_outro_mas_nao_entrega(client: TestClient) -> None:
+def test_admin_do_inventario_aprova_inclusive_o_proprio_com_registro_mas_nao_entrega(client: TestClient) -> None:
     gestor = _bearer(
         ["inventory:item:read", "inventory:movement:approve", "inventory:withdrawal:request"],
         user_id=24,
@@ -299,4 +299,10 @@ def test_admin_do_inventario_ve_e_aprova_pedido_de_outro_mas_nao_entrega(client:
         headers=gestor,
         json={"reason": "Pedido do gestor.", "lines": [{"item_id": a_id, "from_location_id": a_loc, "quantity": 1}]},
     ).json()
-    assert client.post(f"/inventory/withdrawals/{own['id']}/reject", headers=gestor, json={"reason": "Próprio."}).status_code == 403
+    self_ok = client.post(f"/inventory/withdrawals/{own['id']}/approve", headers=gestor, json={"reason": "Autoaprovação do gestor."})
+    assert self_ok.status_code == 200, self_ok.text
+    assert self_ok.json()["status"] == "approved"
+    trail = client.get(f"/inventory/withdrawals/{own['id']}", headers=gestor).json()["audit_trail"]
+    assert [entry["action"] for entry in trail] == ["withdrawal_requested", "withdrawal_self_approved"]
+    assert trail[-1]["actor_username"] == "gestor" and trail[-1]["reason"] == "Autoaprovação do gestor."
+    assert client.post(f"/inventory/withdrawals/{own['id']}/deliver", headers=PAIOL, json={"reason": "Ok."}).status_code == 200

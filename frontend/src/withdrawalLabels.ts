@@ -24,6 +24,8 @@ export function auditActionLabel(action: string): string {
     withdrawal_requested: "Retirada solicitada",
     withdrawal_approved: "Retirada aprovada",
     withdrawal_rejected: "Retirada recusada",
+    withdrawal_self_approved: "Retirada autoaprovada pelo admin",
+    withdrawal_self_rejected: "Retirada recusada pelo próprio admin",
     withdrawal_delivered: "Material entregue",
     return_requested: "Devolução solicitada",
     return_accepted: "Devolução aceita",

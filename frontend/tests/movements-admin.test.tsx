@@ -49,4 +49,18 @@ describe("admin do inventário", () => {
     expect(screen.getByRole("button", { name: "Recusar" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Entregar" })).toBeNull();
   });
+
+  it("vê Aprovar também no próprio pedido", async () => {
+    vi.spyOn(inventoryService, "listWithdrawals").mockResolvedValue({ items: [{ ...order, requested_by_id: 24 }], total: 1 });
+    vi.spyOn(inventoryService, "listMovements").mockResolvedValue({ items: [], total: 0 });
+
+    renderWithProviders(
+      <MemoryRouter>
+        <MovementsPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole("button", { name: "Aprovar" })).toBeTruthy();
+    expect(screen.queryByText(/não aprova o próprio pedido/)).toBeNull();
+  });
 });

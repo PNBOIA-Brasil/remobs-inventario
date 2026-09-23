@@ -122,7 +122,8 @@ export default function HomePage() {
     .flatMap((order) => order.lines.filter((line) => line.custody_quantity > 0).map((line) => ({ order, line })));
   const openMine = mine.filter((order) => order.status === "pending_approval" || order.status === "approved");
   const others = orders.filter((order) => order.requested_by_id !== user?.id);
-  const toApprove = others.filter((order) => order.status === "pending_approval").length;
+  // Admin do inventário também aprova o próprio pedido.
+  const toApprove = (hasAnyPermission("inventory:movement:approve") ? orders : others).filter((order) => order.status === "pending_approval").length;
   const toDeliver = others.filter((order) => order.status === "approved").length;
   const overdue = others.filter((order) => isOverdue(order)).length;
 

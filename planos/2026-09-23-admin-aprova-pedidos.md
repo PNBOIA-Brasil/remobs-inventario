@@ -37,3 +37,16 @@ Autorizado pelo usuário em 2026-09-23. Commits `595d9c6` (regra) e `5222874` (c
 | Banco | sem migração |
 
 Rollback: serviço ECS de volta para `remobs-inventario-backend:14` e republicação do job 35 no Amplify.
+
+## Autoaprovação pelo admin (2026-09-23)
+
+O usuário `jefferson` não via o botão de aprovar no pedido `cbb7f142-e08a-430e-a51a-721d9a34fc9c` porque o pedido era dele. A regra do paiol impedia qualquer pessoa, inclusive com `*`, de decidir o próprio pedido. O histórico estava gravando (`withdrawal_requested` com ator e papéis).
+
+Decisão do usuário: o admin do inventário (`inventory:movement:approve` ou `*`) pode aprovar ou recusar o próprio pedido, com registro próprio no histórico.
+
+- Backend: `_self_approval` libera a decisão para o admin e grava `withdrawal_self_approved` ou `withdrawal_self_rejected`, com ator, papéis e motivo. Paiol comum continua sem autoaprovar. Entrega do próprio pedido continua bloqueada.
+- Frontend: botão Aprovar e Recusar na lista e no detalhe para o admin, inclusive no próprio pedido; fila “Aprovar” e contador do Início incluem os pedidos dele. Quem não pode decidir vê o motivo: “Aguardando outro aprovador: você não aprova o próprio pedido” ou “Aguardando o paiol ou o admin do inventário”.
+- Histórico: rótulos “Retirada autoaprovada pelo admin” e “Retirada recusada pelo próprio admin”.
+- Cache PWA `remobs-inventario-v14`.
+
+Validação: backend 36 testes; frontend `tsc -b` e 53 testes.

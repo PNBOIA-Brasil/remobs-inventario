@@ -57,6 +57,12 @@ export default function WithdrawalDetailPage() {
 
   const isRequester = Boolean(order && user?.id === order.requested_by_id);
   const canDecide = Boolean(order && user?.id !== order.requested_by_id);
+  // Admin do inventário pode aprovar o próprio pedido (fica registrado como autoaprovação).
+  const canApprove = Boolean(
+    order?.status === "pending_approval" &&
+      hasAnyPermission(...APPROVE_PERMISSIONS) &&
+      (canDecide || hasAnyPermission("inventory:movement:approve")),
+  );
 
   async function confirm(reason: string) {
     if (!order || !decision) return;
@@ -118,7 +124,12 @@ export default function WithdrawalDetailPage() {
             {order.delivered_by_username && (
               <Typography variant="body2">Entrega por {order.delivered_by_username}: {order.delivery_reason}</Typography>
             )}
-            {order.status === "pending_approval" && hasAnyPermission(...APPROVE_PERMISSIONS) && canDecide && (
+            {order.status === "pending_approval" && !canApprove && (
+              <Alert severity="info">
+                {canDecide ? "Aguardando aprovação do paiol ou do admin do inventário." : "Aguardando outro aprovador: você não aprova o próprio pedido."}
+              </Alert>
+            )}
+            {canApprove && (
               <Stack direction="row" spacing={1}>
                 <Button variant="contained" onClick={() => setDecision({ kind: "approve" })}>Aprovar</Button>
                 <Button variant="outlined" color="error" onClick={() => setDecision({ kind: "reject" })}>Recusar</Button>
@@ -146,7 +157,7 @@ export default function WithdrawalDetailPage() {
                   Pedido {line.quantity} • em posse {line.custody_quantity} • devolvido {line.returned_quantity} • baixado {line.written_off_quantity}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">Origem: {line.from_location_name}</Typography>
-                {order.status === "pending_approval" && hasAnyPermission(...APPROVE_PERMISSIONS) && canDecide && (
+                {canApprove && (
                   <TextField
                     label={`Aprovar de ${line.item_name}`}
                     helperText={`Pedido ${line.quantity}. Use 0 para recusar este material.`}

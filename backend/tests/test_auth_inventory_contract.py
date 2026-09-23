@@ -1134,7 +1134,8 @@ def test_withdrawal_custody_flow(client: TestClient) -> None:
         username="campo",
         roles=["operacao"],
     )
-    requester_star = _bearer(["*"], user_id=8, username="campo", roles=["operacao"])
+    # Paiol comum não autoaprova; só admin do inventário (movement:approve ou *) pode.
+    requester_star = _bearer(["inventory:withdrawal:approve"], user_id=8, username="campo", roles=["paiol"])
     paiol = _bearer(
         [
             "inventory:item:read",
