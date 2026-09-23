@@ -1,4 +1,5 @@
 import AddIcon from "@mui/icons-material/Add";
+import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
 import RemoveIcon from "@mui/icons-material/Remove";
 import Autocomplete from "@mui/material/Autocomplete";
 import Alert from "@mui/material/Alert";
@@ -16,13 +17,15 @@ import TextField from "@mui/material/TextField";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Typography from "@mui/material/Typography";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import LoadingState from "../components/LoadingState";
+import QrCameraScanner, { canUseCamera } from "../components/QrCameraScanner";
 import { inventoryService } from "../services/inventoryService";
 import { useSnackbar } from "../state/SnackbarContext";
 import type { InventoryItem, InventoryLocation, Platform, StockBalance, WithdrawalPurpose } from "../types";
+import { findItemByCode } from "./ScanPage";
 
 const draftKey = "remobs_withdrawal_request_draft";
 const legacyDraftKey = "remobs_movement_request_draft";
@@ -165,6 +168,11 @@ export default function MovementRequestPage() {
   const [sending, setSending] = useState(false);
   const [loadingItems, setLoadingItems] = useState(true);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
+  const [scanOpen, setScanOpen] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [lastScan, setLastScan] = useState<{ severity: "success" | "info" | "warning"; text: string } | null>(null);
+  const [typedCode, setTypedCode] = useState("");
+  const scannedAny = useRef(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { showSuccess, showError, showInfo } = useSnackbar();
@@ -262,6 +270,42 @@ export default function MovementRequestPage() {
     });
   }
 
+  // Leitura contínua: cada etiqueta vira uma linha; consumível repetido soma 1, permanente não duplica.
+  function addScanned(raw: string) {
+    const item = findItemByCode(items, raw);
+    if (!item) {
+      setLastScan({ severity: "warning", text: `Código não encontrado: ${raw.trim()}` });
+      return;
+    }
+    const label = [item.patrimony_number, item.name].filter(Boolean).join(" · ");
+    const existing = draft.lines.find((line) => line.itemId === item.id);
+    if (existing && item.item_type === "permanent_component") {
+      setLastScan({ severity: "info", text: `${label} já está na lista.` });
+      return;
+    }
+    if (existing) {
+      const quantity = Number(existing.quantity) + 1;
+      updateLine(existing.key, { quantity: String(quantity) });
+      setLastScan({ severity: "success", text: `${label}: +1, agora ${quantity} ${item.unit}.` });
+      return;
+    }
+    // A tela abre com o primeiro item do catálogo pré-selecionado; a primeira leitura toma o lugar dele.
+    const lone = draft.lines.length === 1 ? draft.lines[0] : null;
+    const replaceDefault = !scannedAny.current && !stateItemId && lone?.itemId === items[0]?.id && lone?.quantity === "1";
+    scannedAny.current = true;
+    const line = newLine({ itemId: item.id, fromLocationId: resolveOriginLocationId(item) });
+    setDraft((current) => ({ ...current, lines: replaceDefault ? [line] : [...current.lines, line] }));
+    setLastScan({ severity: "success", text: `${label} adicionado.` });
+  }
+
+  function submitTypedCode(event: FormEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!typedCode.trim()) return;
+    addScanned(typedCode);
+    setTypedCode("");
+  }
+
   async function sendRequest() {
     if (validationError || sending) return;
     setSending(true);
@@ -336,7 +380,7 @@ export default function MovementRequestPage() {
                   >
                     {items.map((item) => (
                       <MenuItem key={item.id} value={item.id}>
-                        {item.name} ({item.stock_total} {item.unit})
+                        {item.patrimony_number ? `${item.patrimony_number} · ` : ""}{item.name} ({item.stock_total} {item.unit})
                       </MenuItem>
                     ))}
                   </TextField>
@@ -366,9 +410,23 @@ export default function MovementRequestPage() {
                 </Stack>
               );
             })}
-            <Button startIcon={<AddIcon />} onClick={addLine} disabled={items.length === 0}>
-              Adicionar material
-            </Button>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+              <Button
+                variant="contained"
+                startIcon={<QrCodeScannerIcon />}
+                onClick={() => {
+                  setLastScan(null);
+                  setScanError(null);
+                  setScanOpen(true);
+                }}
+                disabled={items.length === 0}
+              >
+                Escanear QR Code
+              </Button>
+              <Button startIcon={<AddIcon />} onClick={addLine} disabled={items.length === 0}>
+                Adicionar material
+              </Button>
+            </Stack>
             <Stack spacing={1}>
               <Typography fontWeight={700} id="finalidade">Para quê?</Typography>
               <ToggleButtonGroup
@@ -433,6 +491,37 @@ export default function MovementRequestPage() {
           </Stack>
         </CardContent>
       </Card>
+
+      <Dialog fullScreen open={scanOpen} onClose={() => setScanOpen(false)} aria-labelledby="scan-title">
+        <DialogTitle id="scan-title">Adicionar à retirada</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2}>
+            {canUseCamera() ? (
+              <>
+                <QrCameraScanner onCode={addScanned} onError={setScanError} />
+                <Typography variant="body2" color="text.secondary">
+                  Aponte para a etiqueta. A leitura continua até você concluir.
+                </Typography>
+              </>
+            ) : (
+              <Alert severity="info">Leitura pela câmera indisponível neste navegador. Digite o número abaixo.</Alert>
+            )}
+            {scanError && <Alert severity="warning">{scanError}</Alert>}
+            {lastScan && <Alert severity={lastScan.severity} role="status">{lastScan.text}</Alert>}
+            <Stack component="form" direction="row" spacing={1} onSubmit={submitTypedCode}>
+              <TextField label="Digitar número" value={typedCode} onChange={(event) => setTypedCode(event.target.value)} fullWidth />
+              <Button type="submit" variant="outlined" disabled={!typedCode.trim()}>
+                Adicionar
+              </Button>
+            </Stack>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="contained" onClick={() => setScanOpen(false)}>
+            Concluir · {draft.lines.length} {draft.lines.length === 1 ? "item" : "itens"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={confirmOpen} onClose={sending ? undefined : () => setConfirmOpen(false)} fullWidth>
         <DialogTitle>Confirmar retirada</DialogTitle>

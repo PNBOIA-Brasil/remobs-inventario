@@ -2,6 +2,13 @@
 
 ## [2026-09-23]
 
+### Adicionado — número patrimonial e QR Code do item
+- Todo item passa a ter número patrimonial único. O cadastro gera `REM-000001`, `REM-000002`… quando o número não é informado; um item com plaqueta existente pode usar o número dela. Número repetido é recusado e o prefixo `REM-` fica reservado ao sistema.
+- O número não pode ser alterado depois do cadastro.
+- O detalhe do item mostra o QR Code do patrimônio, com impressão da etiqueta de 62 × 29 mm e download do PNG. O QR abre a ficha do item pelo link `/app/p/<número>`.
+- Solicitar retirada ganha o botão "Escanear QR Code", com leitura contínua: cada etiqueta lida entra na lista, consumível repetido soma 1 à quantidade e permanente não é duplicado. Etiqueta danificada pode ter o número digitado.
+- Migração `0007_item_patrimony_unique`: preenche o patrimônio dos itens existentes sem número, pela ordem de cadastro, e cria índice único. Cache PWA `remobs-inventario-v21`. Plano: `planos/2026-09-23-patrimonio-qr-code-item.md`.
+
 ### Publicado — QR Code da devolução
 - Produção: somente frontend, Amplify job `44` `SUCCEED`, bundle `index-BxLO3gZC.js`, cache PWA `v20`. Backend e banco sem alteração. Rollback: republicar o job 43 no Amplify.
 

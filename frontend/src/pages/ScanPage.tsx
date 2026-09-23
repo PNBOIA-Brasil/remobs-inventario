@@ -1,6 +1,5 @@
 import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
 import Alert from "@mui/material/Alert";
-import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
 import CardActionArea from "@mui/material/CardActionArea";
@@ -8,41 +7,20 @@ import CardContent from "@mui/material/CardContent";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
-import { FormEvent, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { FormEvent, useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+
+import QrCameraScanner, { canUseCamera } from "../components/QrCameraScanner";
 
 import { inventoryService } from "../services/inventoryService";
 import type { InventoryItem } from "../types";
 import { returnCode, withdrawalCode } from "../withdrawalLabels";
-
-// API nativa (Chrome/Android). Não está na lib do TypeScript.
-interface DetectedBarcode {
-  rawValue: string;
-}
-interface BarcodeDetectorLike {
-  detect(source: HTMLVideoElement): Promise<DetectedBarcode[]>;
-}
-type BarcodeDetectorCtor = new (options?: { formats?: string[] }) => BarcodeDetectorLike;
 
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 const WITHDRAWAL_URL = new RegExp(`/withdrawals/(${UUID.source})`, "i");
 const WITHDRAWAL_CODE = /^RET-[0-9A-F]{8}$/i;
 const RETURN_PARAM = new RegExp(`[?&]devolucao=(${UUID.source})`, "i");
 const RETURN_CODE = /^DEV-[0-9A-F]{8}$/i;
-
-/** Usa a API nativa quando existe; no iPhone (WebKit) e no Chrome desktop do Windows, carrega o leitor zxing-wasm do próprio app. */
-async function loadDetector(): Promise<BarcodeDetectorCtor> {
-  const native = (window as unknown as { BarcodeDetector?: BarcodeDetectorCtor }).BarcodeDetector;
-  if (native) return native;
-  const [{ BarcodeDetector, prepareZXingModule }, { default: wasmUrl }] = await Promise.all([
-    import("barcode-detector/ponyfill"),
-    import("zxing-wasm/reader/zxing_reader.wasm?url"),
-  ]);
-  prepareZXingModule({
-    overrides: { locateFile: (path: string, prefix: string) => (path.endsWith(".wasm") ? wasmUrl : prefix + path) },
-  });
-  return BarcodeDetector as unknown as BarcodeDetectorCtor;
-}
 
 /** Etiqueta com o id do item (ou link /app/inventory/<id>) abre direto; senão busca por patrimônio, série ou nome. */
 export function itemIdFromCode(code: string): string | null {
@@ -64,6 +42,25 @@ export function withdrawalPathFromCode(code: string): string | null {
   return `/app/withdrawals/${withdrawalId}${returnId ? `?devolucao=${returnId}` : ""}`;
 }
 
+const PATRIMONY_URL = /\/app\/p\/([^/?#]+)/i;
+
+/** QR do item (link /app/p/<patrimônio>): devolve o número patrimonial. */
+export function patrimonyFromCode(code: string): string | null {
+  const match = code.match(PATRIMONY_URL);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+/** Item da lista pelo QR do patrimônio, id/link do item, patrimônio ou série digitados. */
+export function findItemByCode(items: InventoryItem[], raw: string): InventoryItem | null {
+  const value = (patrimonyFromCode(raw) ?? raw).trim().toLowerCase();
+  const id = itemIdFromCode(value);
+  return (
+    items.find(
+      (item) => item.id === id || item.patrimony_number?.toLowerCase() === value || item.serial_number?.toLowerCase() === value,
+    ) ?? null
+  );
+}
+
 export default function ScanPage() {
   const [code, setCode] = useState("");
   const [results, setResults] = useState<InventoryItem[] | null>(null);
@@ -71,12 +68,20 @@ export default function ScanPage() {
   const [searching, setSearching] = useState(false);
   const [cameraOn, setCameraOn] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const navigate = useNavigate();
-  const canUseCamera = Boolean(navigator.mediaDevices?.getUserMedia);
+  const routeNavigate = useNavigate();
+  // /app/p/<patrimônio> (QR lido pela câmera do celular) resolve aqui e sai do histórico.
+  const { code: patrimonyParam } = useParams();
+  const navigate = (path: string) => routeNavigate(path, { replace: Boolean(patrimonyParam) });
+
+  useEffect(() => {
+    if (!patrimonyParam) return;
+    setCode(patrimonyParam);
+    void lookup(patrimonyParam);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- lookup só navega/atualiza estado
+  }, [patrimonyParam]);
 
   async function lookup(raw: string) {
-    const value = raw.trim();
+    const value = (patrimonyFromCode(raw) ?? raw).trim();
     setResults(null);
     setWithdrawalNotFound(false);
     if (!value) return;
@@ -140,46 +145,6 @@ export default function ScanPage() {
     }
   }
 
-  useEffect(() => {
-    if (!cameraOn) return;
-    let stream: MediaStream | null = null;
-    let timer: number | undefined;
-    let stopped = false;
-    let busy = false;
-
-    Promise.all([loadDetector(), navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })])
-      .then(([Ctor, media]) => {
-        stream = media;
-        if (stopped || !videoRef.current) {
-          media.getTracks().forEach((track) => track.stop());
-          return;
-        }
-        const detector = new Ctor({ formats: ["qr_code", "code_128", "code_39", "ean_13", "ean_8"] });
-        videoRef.current.srcObject = media;
-        void videoRef.current.play();
-        timer = window.setInterval(async () => {
-          if (busy || !videoRef.current || videoRef.current.readyState < 2) return;
-          busy = true;
-          const [first] = await detector.detect(videoRef.current).catch(() => []);
-          busy = false;
-          if (first?.rawValue && !stopped) {
-            stopped = true;
-            setCameraOn(false);
-            setCode(first.rawValue);
-            void lookup(first.rawValue);
-          }
-        }, 400);
-      })
-      .catch(() => setCameraError("Não foi possível abrir a câmera. Verifique a permissão do navegador ou digite o código."));
-
-    return () => {
-      stopped = true;
-      window.clearInterval(timer);
-      stream?.getTracks().forEach((track) => track.stop());
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- lookup só navega/atualiza estado
-  }, [cameraOn]);
-
   function submit(event: FormEvent) {
     event.preventDefault();
     void lookup(code);
@@ -192,10 +157,17 @@ export default function ScanPage() {
         Leia a etiqueta do material ou o QR Code da retirada ou da devolução, ou digite o patrimônio, o número de série, parte do nome ou o código RET- ou DEV-.
       </Typography>
 
-      {canUseCamera ? (
+      {canUseCamera() ? (
         cameraOn ? (
           <Stack spacing={1}>
-            <Box component="video" ref={videoRef} muted playsInline sx={{ width: "100%", maxHeight: 360, bgcolor: "common.black", borderRadius: 2 }} />
+            <QrCameraScanner
+              onCode={(value) => {
+                setCameraOn(false);
+                setCode(value);
+                void lookup(value);
+              }}
+              onError={setCameraError}
+            />
             <Button onClick={() => setCameraOn(false)}>Fechar câmera</Button>
           </Stack>
         ) : (

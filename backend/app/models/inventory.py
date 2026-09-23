@@ -44,7 +44,8 @@ class InventoryItem(Base):
     brand: Mapped[str | None] = mapped_column(String(160), nullable=True, index=True)
     model: Mapped[str | None] = mapped_column(String(160), nullable=True, index=True)
     serial_number: Mapped[str | None] = mapped_column(String(160), nullable=True, index=True)
-    patrimony_number: Mapped[str | None] = mapped_column(String(160), nullable=True, index=True)
+    # Único; a API gera REM-000001… quando o cadastro não informa (migração 0007).
+    patrimony_number: Mapped[str | None] = mapped_column(String(160), nullable=True, unique=True, index=True)
     invoice_number: Mapped[str | None] = mapped_column(String(160), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     condition_status: Mapped[str] = mapped_column(String(64), default="operacional", nullable=False, index=True)

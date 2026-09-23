@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 from fastapi.responses import Response
 from sqlalchemy import or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_async_session
@@ -34,6 +35,7 @@ from app.services.inventory_service import (
     get_or_create_balance,
     get_or_create_category,
     get_or_create_location,
+    resolve_patrimony_number,
     serialize_item,
     serialize_items_bulk,
     serialize_movement,
@@ -96,7 +98,7 @@ async def create_item(
         brand=payload.brand,
         model=payload.model,
         serial_number=payload.serial_number,
-        patrimony_number=payload.patrimony_number,
+        patrimony_number=await resolve_patrimony_number(session, payload.patrimony_number),
         invoice_number=payload.invoice_number,
         description=payload.description,
         condition_status=payload.condition_status,
@@ -108,7 +110,11 @@ async def create_item(
         ideal_stock=payload.ideal_stock,
     )
     session.add(item)
-    await session.flush()
+    try:
+        await session.flush()
+    except IntegrityError as exc:
+        # ponytail: dois cadastros no mesmo instante pegam o mesmo número; o segundo repete o envio.
+        raise AppError("Número patrimonial já usado. Salve de novo.", code="patrimony_number_taken", status_code=409) from exc
 
     balance = await get_or_create_balance(session, item_id=item.id, location_id=location.id)
     if payload.initial_quantity:

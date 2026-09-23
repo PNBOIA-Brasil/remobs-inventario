@@ -52,6 +52,29 @@ async def get_or_create_location(session: AsyncSession, *, location_id: uuid.UUI
     return location
 
 
+PATRIMONY_PREFIX = "REM-"
+
+
+async def resolve_patrimony_number(session: AsyncSession, informed: str | None) -> str:
+    """Número informado (plaqueta antiga) ou o próximo REM-NNNNNN livre."""
+    number = (informed or "").strip()
+    if number:
+        if number.upper().startswith(PATRIMONY_PREFIX):
+            raise AppError(
+                f"O prefixo {PATRIMONY_PREFIX} é reservado para números gerados pelo sistema.",
+                code="patrimony_number_reserved",
+                status_code=400,
+            )
+        if await session.scalar(select(InventoryItem.id).where(InventoryItem.patrimony_number == number)):
+            raise AppError("Número patrimonial já cadastrado.", code="patrimony_number_taken", status_code=409)
+        return number
+    # Largura fixa: max() lexicográfico = maior número. Usuário não grava REM- (acima).
+    last = await session.scalar(
+        select(func.max(InventoryItem.patrimony_number)).where(InventoryItem.patrimony_number.like(f"{PATRIMONY_PREFIX}______"))
+    )
+    return f"{PATRIMONY_PREFIX}{int(last[len(PATRIMONY_PREFIX):]) + 1 if last else 1:06d}"
+
+
 async def get_item_or_404(session: AsyncSession, item_id: uuid.UUID) -> InventoryItem:
     item = await session.get(InventoryItem, item_id)
     if not item or item.deleted_at is not None:

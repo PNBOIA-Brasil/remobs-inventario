@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useParams } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import ScanPage, { itemIdFromCode, withdrawalIdFromCode, withdrawalPathFromCode } from "../src/pages/ScanPage";
+import ScanPage, { findItemByCode, itemIdFromCode, patrimonyFromCode, withdrawalIdFromCode, withdrawalPathFromCode } from "../src/pages/ScanPage";
 import { inventoryService } from "../src/services/inventoryService";
 import type { InventoryItem, WithdrawalOrder } from "../src/types";
 import { renderWithProviders } from "./test-utils";
@@ -118,5 +118,29 @@ describe("leitor de etiquetas", () => {
     fireEvent.click(screen.getByRole("button", { name: "Buscar" }));
 
     await waitFor(() => expect(screen.getByText("2 materiais encontrados")).toBeTruthy());
+  });
+
+  it("extrai o patrimônio do QR do item e acha o item pelo código", () => {
+    expect(patrimonyFromCode("https://inventario.remobs.com.br/app/p/REM-000124")).toBe("REM-000124");
+    expect(patrimonyFromCode("REM-000124")).toBeNull();
+    const items = [item("a", "REM-000001"), item("b", "REM-000124")];
+    expect(findItemByCode(items, "https://x/app/p/REM-000124")?.id).toBe("b");
+    expect(findItemByCode(items, " rem-000001 ")?.id).toBe("a");
+    expect(findItemByCode(items, "REM-000999")).toBeNull();
+  });
+
+  it("abre a ficha pelo link /app/p/<patrimônio>", async () => {
+    const search = vi.spyOn(inventoryService, "listItems").mockResolvedValue({ items: [item("b", "REM-000124")], total: 1 });
+    renderWithProviders(
+      <MemoryRouter initialEntries={["/app/p/REM-000124"]}>
+        <Routes>
+          <Route path="/app/p/:code" element={<ScanPage />} />
+          <Route path="/app/inventory/:id" element={<div>Ficha do item</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Ficha do item")).toBeTruthy();
+    expect(search).toHaveBeenCalledWith({ q: "REM-000124" });
   });
 });

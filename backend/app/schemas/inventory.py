@@ -38,11 +38,11 @@ class InventoryItemCreate(BaseModel):
 
 
 class InventoryItemUpdate(BaseModel):
+    # Sem patrimony_number: o número é o QR Code impresso e não muda depois do cadastro.
     name: str | None = Field(default=None, min_length=1, max_length=240)
     brand: str | None = None
     model: str | None = None
     serial_number: str | None = None
-    patrimony_number: str | None = None
     invoice_number: str | None = None
     description: str | None = None
     condition_status: str | None = None

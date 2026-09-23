@@ -74,6 +74,7 @@ export default function App() {
           <Route path="checklists/new" element={<ChecklistFormPage />} />
           <Route path="checklists/:id" element={<ChecklistDetailPage />} />
           <Route path="scan" element={<ScanPage />} />
+          <Route path="p/:code" element={<ScanPage />} />
           <Route path="sync" element={<SyncPage />} />
           <Route path="menu" element={<MenuPage />} />
         </Route>

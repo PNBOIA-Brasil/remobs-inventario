@@ -339,3 +339,22 @@ def test_paiol_comum_continua_sem_decidir_o_proprio_pedido(client: TestClient) -
     denied = client.post(f"/inventory/withdrawals/{own['id']}/approve", headers=PAIOL, json={"reason": "Próprio."})
     assert denied.status_code == 403
     assert denied.json()["error"]["code"] == "self_decision_denied"
+
+
+def test_patrimonio_gerado_unico_e_imutavel(client: TestClient) -> None:
+    first_id, _ = _item(client, quantity=1)
+    second_id, _ = _item(client, quantity=1)
+    first = client.get(f"/inventory/items/{first_id}", headers=ADMIN).json()["patrimony_number"]
+    second = client.get(f"/inventory/items/{second_id}", headers=ADMIN).json()["patrimony_number"]
+    assert first.startswith("REM-") and len(first) == 10
+    assert int(second[4:]) == int(first[4:]) + 1
+
+    base = {"item_type": "consumable", "name": "Plaqueta", "category_name": "Fluxo", "location_name": "Paiol fluxo", "unit": "un"}
+    assert client.post("/inventory/items", headers=ADMIN, json={**base, "patrimony_number": "rem-999999"}).status_code == 400
+    plaqueta = f"PAT-{uuid.uuid4().hex[:8]}"
+    assert client.post("/inventory/items", headers=ADMIN, json={**base, "patrimony_number": f" {plaqueta} "}).json()["patrimony_number"] == plaqueta
+    assert client.post("/inventory/items", headers=ADMIN, json={**base, "patrimony_number": plaqueta}).status_code == 409
+
+    edited = client.patch(f"/inventory/items/{first_id}", headers=ADMIN, json={"patrimony_number": "OUTRO", "reason": "Teste."})
+    assert edited.status_code == 200, edited.text
+    assert edited.json()["patrimony_number"] == first

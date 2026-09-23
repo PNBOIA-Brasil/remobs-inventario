@@ -25,6 +25,7 @@ import Typography from "@mui/material/Typography";
 import { ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
+import ItemQrLabel from "../components/ItemQrLabel";
 import LoadingState from "../components/LoadingState";
 import StatusChip from "../components/StatusChip";
 import { inventoryService } from "../services/inventoryService";
@@ -244,6 +245,8 @@ export default function InventoryDetailPage() {
           </Stack>
         </CardContent>
       </Card>
+
+      <ItemQrLabel item={item} />
 
       <Card>
         <CardContent>

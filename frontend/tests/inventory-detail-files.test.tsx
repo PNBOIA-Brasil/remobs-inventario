@@ -24,7 +24,7 @@ const item = {
   brand: "Moura",
   model: "28Ah",
   serial_number: null,
-  patrimony_number: null,
+  patrimony_number: "REM-000042",
   invoice_number: null,
   description: "Bateria de campo",
   condition_status: "operacional",
@@ -89,6 +89,9 @@ describe("anexos no detalhe do inventário", () => {
     expect(await screen.findByRole("button", { name: /anexar foto/i })).toBeTruthy();
     expect(screen.getByRole("button", { name: /anexar documento/i })).toBeTruthy();
     expect(await screen.findByText("bateria.jpg")).toBeTruthy();
+    expect(screen.getAllByText("REM-000042").length).toBeGreaterThan(0);
+    expect(screen.getByRole("img", { name: "QR Code do patrimônio REM-000042" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /imprimir etiqueta/i })).toBeTruthy();
     expect(screen.getByText(/2\.0 KB/i)).toBeTruthy();
   });
 

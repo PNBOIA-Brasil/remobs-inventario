@@ -16,5 +16,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
+    // Telas MUI com muitos eventos passam de 5 s quando a suíte roda em paralelo.
+    testTimeout: 20000,
   },
 });

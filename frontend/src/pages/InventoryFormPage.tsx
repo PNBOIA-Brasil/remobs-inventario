@@ -1,3 +1,4 @@
+import axios from "axios";
 import Autocomplete from "@mui/material/Autocomplete";
 import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
@@ -272,7 +273,6 @@ export default function InventoryFormPage() {
           brand: form.brand || null,
           model: form.model || null,
           serial_number: form.serial_number || null,
-          patrimony_number: form.patrimony_number || null,
           invoice_number: form.invoice_number || null,
           description: form.description || null,
           condition_status: form.condition_status,
@@ -308,11 +308,13 @@ export default function InventoryFormPage() {
           ideal_stock: Number(form.ideal_stock),
           reason: form.reason,
         });
-        showSuccess("Item cadastrado com sucesso.");
+        showSuccess(`Item cadastrado. Patrimônio ${item.patrimony_number}.`);
         navigate(`/app/inventory/${item.id}`);
       }
-    } catch {
-      showError(isEdit ? "Não foi possível atualizar o item." : "Não foi possível salvar o item.");
+    } catch (error) {
+      // Patrimônio repetido ou com prefixo reservado: a API explica o motivo.
+      const message = axios.isAxiosError(error) ? error.response?.data?.error?.message : undefined;
+      showError(message || (isEdit ? "Não foi possível atualizar o item." : "Não foi possível salvar o item."));
     } finally {
       setSubmitting(false);
     }
@@ -369,7 +371,14 @@ export default function InventoryFormPage() {
               <TextField fullWidth label="Número de série" value={form.serial_number} onChange={(event) => update("serial_number", event.target.value)} />
             </Grid>
             <Grid size={{ xs: 12, md: 6 }}>
-              <TextField fullWidth label="Patrimônio" value={form.patrimony_number} onChange={(event) => update("patrimony_number", event.target.value)} />
+              <TextField
+                fullWidth
+                label={isEdit ? "Número patrimonial" : "Patrimônio (plaqueta existente)"}
+                value={form.patrimony_number}
+                onChange={(event) => update("patrimony_number", event.target.value)}
+                disabled={isEdit}
+                helperText={isEdit ? "Não muda: é o QR Code do item." : "Deixe vazio para gerar automaticamente (REM-000001)."}
+              />
             </Grid>
             <Grid size={{ xs: 12, md: 6 }}>
               <TextField fullWidth label="Nota fiscal" value={form.invoice_number} onChange={(event) => update("invoice_number", event.target.value)} />

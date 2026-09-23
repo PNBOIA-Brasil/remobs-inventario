@@ -115,4 +115,52 @@ describe("solicitação de retirada com vários materiais", () => {
     await waitFor(() => expect(request).toHaveBeenCalledTimes(1));
     expect(request.mock.calls[0][0]).toMatchObject({ purpose: "emprestimo", due_date: "2999-12-31" });
   });
+
+  it("adiciona itens pelo QR Code do patrimônio, sem duplicar permanente", async () => {
+    const withNumber = (id: string, name: string, patrimony: string, permanent = false): InventoryItem => ({
+      ...item(id, name),
+      patrimony_number: patrimony,
+      item_type: permanent ? "permanent_component" : "consumable",
+    });
+    vi.spyOn(inventoryService, "listItems").mockResolvedValue({
+      items: [withNumber("item-cabo", "Cabo", "REM-000001"), withNumber("item-trena", "Trena", "REM-000002", true), withNumber("item-bateria", "Bateria", "REM-000003")],
+      total: 3,
+    });
+    vi.spyOn(inventoryService, "listLocations").mockResolvedValue({ items: locations, total: 1 });
+    const request = vi.spyOn(inventoryService, "requestWithdrawal").mockResolvedValue({} as never);
+
+    renderWithProviders(
+      <MemoryRouter initialEntries={["/app/movements/new"]}>
+        <Routes>
+          <Route path="/app/movements/new" element={<MovementRequestPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("combobox", { name: /^Origem/i });
+    fireEvent.click(screen.getByRole("button", { name: /escanear qr code/i }));
+    const read = (code: string) => {
+      fireEvent.change(screen.getByLabelText("Digitar número"), { target: { value: code } });
+      fireEvent.click(screen.getByRole("button", { name: "Adicionar" }));
+    };
+
+    read("REM-000002");
+    expect(screen.getByRole("status").textContent).toBe("REM-000002 · Trena adicionado.");
+    read("https://inventario.remobs.com.br/app/p/REM-000003");
+    read("rem-000003");
+    expect(screen.getByRole("status").textContent).toBe("REM-000003 · Bateria: +1, agora 2 un.");
+    read("REM-000002");
+    expect(screen.getByRole("status").textContent).toBe("REM-000002 · Trena já está na lista.");
+    read("XYZ");
+    expect(screen.getByRole("status").textContent).toBe("Código não encontrado: XYZ");
+    fireEvent.click(screen.getByRole("button", { name: "Concluir · 2 itens" }));
+
+    fireEvent.click(await screen.findByRole("button", { name: /enviar solicitação/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^confirmar$/i }));
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(1));
+    expect(request.mock.calls[0][0].lines.map((line) => [line.item_id, line.quantity])).toEqual([
+      ["item-trena", 1],
+      ["item-bateria", 2],
+    ]);
+  });
 });

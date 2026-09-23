@@ -117,7 +117,6 @@ export interface InventoryItemUpdatePayload {
   brand?: string | null;
   model?: string | null;
   serial_number?: string | null;
-  patrimony_number?: string | null;
   invoice_number?: string | null;
   description?: string | null;
   condition_status?: string;
