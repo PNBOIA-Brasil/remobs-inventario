@@ -56,6 +56,8 @@ PAIOL_DECISION_CODES = {
 }
 PAIOL_ROLE_CODES = [
     "inventory:item:read",
+    # O paiol cadastra o material sem cadastro ao receber uma nota fiscal.
+    "inventory:item:create",
     "inventory:custody:read",
     *sorted(PAIOL_DECISION_CODES),
 ]

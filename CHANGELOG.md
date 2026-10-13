@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [2026-10-13]
+
+### Alterado — paiol cadastra item novo no recebimento por nota fiscal
+- A role `inventario-paiol` passa a incluir `inventory:item:create` no catálogo (`register_inventory_permissions.py`). Sem ela, a opção "Não está no estoque: cadastrar item novo" não aparecia na conferência da nota fiscal.
+- Impacto: o paiol também passa a ver "Novo item" na lista de itens e o cadastro rápido em "Receber material". Sem alteração de código do frontend, das rotas ou do banco do inventário.
+- Produção: pendente anexar a permissão à role no `remobs-users`. Plano: `planos/2026-10-13-paiol-cadastra-item-na-nota-fiscal.md`.
+
 ## [2026-09-23]
 
 ### Publicado — tela de notas fiscais recebidas

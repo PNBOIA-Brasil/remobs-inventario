@@ -26,9 +26,10 @@ def test_admin_catalog_excludes_paiol_decisions() -> None:
     assert "inventory:movement:approve" in admin_codes
 
 
-def test_paiol_role_receives_only_decision_and_read() -> None:
+def test_paiol_role_receives_decision_read_and_item_create() -> None:
     assert set(PAIOL_DECISION_CODES) <= set(PAIOL_ROLE_CODES)
     assert "inventory:item:read" in PAIOL_ROLE_CODES
+    assert "inventory:item:create" in PAIOL_ROLE_CODES
     assert "inventory:custody:read" in PAIOL_ROLE_CODES
     assert "inventory:withdrawal:request" not in PAIOL_ROLE_CODES
     assert "inventory:item:update" not in PAIOL_ROLE_CODES
