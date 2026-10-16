@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from datetime import date, datetime, time, timedelta, timezone
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -136,12 +137,19 @@ async def download_invoice_file(
 
 @router.get("/receipts/invoices", response_model=ReceivedInvoiceList)
 async def list_received_invoices(
+    date_from: date | None = Query(default=None),
+    date_to: date | None = Query(default=None),
     user: AuthUser = Depends(require_permissions(["inventory:item:read"])),
     session: AsyncSession = Depends(get_async_session),
 ) -> dict:
-    """Notas fiscais recebidas, da mais recente para a mais antiga."""
-    # ponytail: teto de 500 notas sem paginação nem busca no servidor; a tela filtra. Paginar quando passar disso.
-    query = select(ReceivedInvoice).order_by(ReceivedInvoice.received_at.desc()).limit(500)
+    """Notas fiscais recebidas, da mais recente para a mais antiga; filtra pelo período de recebimento."""
+    # ponytail: teto de 500 notas por consulta; com filtro de período a tela gera o relatório do mês.
+    query = select(ReceivedInvoice)
+    if date_from:
+        query = query.where(ReceivedInvoice.received_at >= datetime.combine(date_from, time.min, tzinfo=timezone.utc))
+    if date_to:
+        query = query.where(ReceivedInvoice.received_at < datetime.combine(date_to + timedelta(days=1), time.min, tzinfo=timezone.utc))
+    query = query.order_by(ReceivedInvoice.received_at.desc()).limit(500)
     items = await summarize_invoices(session, list((await session.execute(query)).scalars()))
     return {"items": items, "total": len(items)}
 

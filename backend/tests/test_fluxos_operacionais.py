@@ -392,3 +392,30 @@ def test_recebimento_por_nota_vincula_pedido_de_aquisicao(client: TestClient) ->
     needs = client.get("/inventory/acquisitions", headers=ADMIN).json()["items"]
     linked = next(entry for entry in needs if entry["id"] == need_id)
     assert linked["received_quantity"] == 3
+
+
+def test_recebimento_com_data_informada_entra_no_relatorio_do_mes(client: TestClient) -> None:
+    item_id, location_id = _item(client, quantity=0, item_type="consumable")
+    invoice_id = str(uuid.uuid4())
+    receipt = client.post(
+        "/inventory/receipts",
+        headers=ADMIN,
+        json={
+            "origin": "compra",
+            "location_id": location_id,
+            "invoice_id": invoice_id,
+            "received_date": "2026-03-15",
+            "lines": [{"item_id": item_id, "quantity": 2}],
+        },
+    )
+    assert receipt.status_code == 201, receipt.text
+
+    march = client.get(
+        "/inventory/receipts/invoices", headers=ADMIN, params={"date_from": "2026-03-01", "date_to": "2026-03-31"}
+    ).json()["items"]
+    assert any(entry["id"] == invoice_id for entry in march)
+
+    april = client.get(
+        "/inventory/receipts/invoices", headers=ADMIN, params={"date_from": "2026-04-01", "date_to": "2026-04-30"}
+    ).json()["items"]
+    assert all(entry["id"] != invoice_id for entry in april)

@@ -149,6 +149,7 @@ export default function InvoiceReceiptPage() {
   const [invoice, setInvoice] = useState<InvoiceReadResult | null>(null);
   const [header, setHeader] = useState<Header>({ supplier_name: "", supplier_cnpj: "", number: "", series: "", issue_date: "", total_value: "" });
   const [origin, setOrigin] = useState<Origin>("compra");
+  const [receiptDate, setReceiptDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [locationId, setLocationId] = useState("");
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [index, setIndex] = useState(0);
@@ -307,6 +308,7 @@ export default function InvoiceReceiptPage() {
         lines: [...merged.values()].map(({ item_id, quantity, supplier_code }) => ({ item_id, quantity, ...(supplier_code ? { supplier_code } : {}) })),
         invoice_id: invoice.invoice_id,
         ...(needId ? { need_id: needId } : {}),
+        ...(receiptDate ? { received_date: receiptDate } : {}),
         ...(header.number.trim() ? { invoice_number: header.number.trim() } : {}),
         ...(header.series.trim() ? { invoice_series: header.series.trim() } : {}),
         ...(header.supplier_name.trim() ? { supplier_name: header.supplier_name.trim() } : {}),
@@ -507,13 +509,23 @@ export default function InvoiceReceiptPage() {
                       </ToggleButton>
                     ))}
                   </ToggleButtonGroup>
-                  <TextField select label="Guardar em" value={locationId} onChange={(e) => setLocationId(e.target.value)} required>
-                    {locations.map((location) => (
-                      <MenuItem key={location.id} value={location.id}>
-                        {location.name}
-                      </MenuItem>
-                    ))}
-                  </TextField>
+                  <Stack direction="row" spacing={2}>
+                    <TextField select label="Guardar em" value={locationId} onChange={(e) => setLocationId(e.target.value)} required fullWidth>
+                      {locations.map((location) => (
+                        <MenuItem key={location.id} value={location.id}>
+                          {location.name}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                    <TextField
+                      label="Data de recebimento"
+                      type="date"
+                      value={receiptDate}
+                      onChange={(e) => setReceiptDate(e.target.value)}
+                      slotProps={{ inputLabel: { shrink: true } }}
+                      sx={{ width: 190, flexShrink: 0 }}
+                    />
+                  </Stack>
                   {invoice.lines.length > 0 ? (
                     <Alert severity="info">
                       <b>{invoice.lines.length} ite{invoice.lines.length === 1 ? "m encontrado" : "ns encontrados"}.</b> Na próxima etapa você confirma cada um e pode tirar foto.

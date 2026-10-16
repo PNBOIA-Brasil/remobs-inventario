@@ -21,6 +21,8 @@ class ReceiptCreate(BaseModel):
     document: str | None = Field(default=None, max_length=160)
     location_id: uuid.UUID
     notes: str | None = None
+    # Data de recebimento informada pelo usuário; sem ela, usa o momento do registro.
+    received_date: date | None = None
     lines: list[ReceiptLineCreate] = Field(min_length=1)
     # Nota fiscal lida em /receipts/invoice/read: cabeçalho conferido pelo usuário.
     invoice_id: uuid.UUID | None = None

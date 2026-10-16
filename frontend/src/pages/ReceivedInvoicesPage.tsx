@@ -22,7 +22,7 @@ import { Link as RouterLink } from "react-router-dom";
 
 import LoadingState from "../components/LoadingState";
 import { RECEIPT_PERMISSIONS } from "../navigation";
-import { inventoryService, type ReceivedInvoice, type ReceivedInvoiceDetail } from "../services/inventoryService";
+import { inventoryService, saveBlob, type ReceivedInvoice, type ReceivedInvoiceDetail } from "../services/inventoryService";
 import { useAuth } from "../state/AuthContext";
 import { useSnackbar } from "../state/SnackbarContext";
 
@@ -31,22 +31,34 @@ const money = (value: number) => value.toLocaleString("pt-BR", { style: "currenc
 const day = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString("pt-BR");
 const plain = (text: string | null) => (text ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
+/** "AAAA-MM" -> intervalo de datas do mês (inclusive) para o relatório. */
+function monthRange(month: string): { dateFrom?: string; dateTo?: string } {
+  if (!/^\d{4}-\d{2}$/.test(month)) return {};
+  const [year, m] = month.split("-").map(Number);
+  const lastDay = new Date(year, m, 0).getDate();
+  return { dateFrom: `${month}-01`, dateTo: `${month}-${String(lastDay).padStart(2, "0")}` };
+}
+
+const csvCell = (value: string) => (/[";\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value);
+
 export default function ReceivedInvoicesPage() {
   const [invoices, setInvoices] = useState<ReceivedInvoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [month, setMonth] = useState("");
   const [details, setDetails] = useState<Record<string, ReceivedInvoiceDetail | "loading">>({});
   const { hasAnyPermission } = useAuth();
   const { showSuccess, showError } = useSnackbar();
 
   useEffect(() => {
+    setLoading(true);
     inventoryService
-      .listReceivedInvoices()
+      .listReceivedInvoices(monthRange(month))
       .then((data) => setInvoices(data.items))
       .catch(() => showError("Não foi possível carregar as notas fiscais."))
       .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- carrega uma vez ao abrir a tela
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recarrega ao trocar o mês
+  }, [month]);
 
   const visible = useMemo(() => {
     const term = plain(search.trim());
@@ -59,6 +71,9 @@ export default function ReceivedInvoicesPage() {
         (digits.length > 0 && [invoice.number, invoice.supplier_cnpj, invoice.access_key].some((value) => (value ?? "").replace(/\D/g, "").includes(digits))),
     );
   }, [invoices, search]);
+
+  const totalUnits = visible.reduce((sum, invoice) => sum + invoice.units, 0);
+  const totalValue = visible.reduce((sum, invoice) => sum + (invoice.total_value ?? 0), 0);
 
   function expand(invoice: ReceivedInvoice, open: boolean) {
     if (!open || details[invoice.id]) return;
@@ -81,6 +96,27 @@ export default function ReceivedInvoicesPage() {
     }
   }
 
+  function exportCsv() {
+    const header = ["Número", "Série", "Fornecedor", "CNPJ", "Emissão", "Recebida em", "Recebido por", "Local", "Origem", "Unidades", "Entradas", "Valor total", "Pedido"];
+    const rows = visible.map((invoice) => [
+      invoice.number ?? "",
+      invoice.series ?? "",
+      invoice.supplier_name ?? "",
+      invoice.supplier_cnpj ?? "",
+      invoice.issue_date ?? "",
+      new Date(invoice.received_at).toLocaleString("pt-BR"),
+      invoice.received_by_username,
+      invoice.location_name ?? "",
+      invoice.origin ? ORIGIN_LABEL[invoice.origin] ?? invoice.origin : "",
+      String(invoice.units),
+      String(invoice.lines),
+      invoice.total_value != null ? String(invoice.total_value) : "",
+      invoice.acquisition_process_number ?? "",
+    ]);
+    const csv = [header, ...rows].map((cols) => cols.map(csvCell).join(";")).join("\r\n");
+    saveBlob(new Blob([`﻿${csv}`], { type: "text/csv;charset=utf-8" }), `notas-recebidas${month ? `-${month}` : ""}.csv`);
+  }
+
   if (loading) return <LoadingState message="Carregando notas fiscais..." />;
 
   return (
@@ -99,8 +135,25 @@ export default function ReceivedInvoicesPage() {
         onChange={(event) => setSearch(event.target.value)}
         slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> } }}
       />
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
+        <TextField
+          label="Mês de recebimento"
+          type="month"
+          value={month}
+          onChange={(event) => setMonth(event.target.value)}
+          slotProps={{ inputLabel: { shrink: true } }}
+          sx={{ maxWidth: 220 }}
+        />
+        {month && <Button onClick={() => setMonth("")}>Limpar mês</Button>}
+        <Box sx={{ flexGrow: 1 }} />
+        <Button variant="outlined" startIcon={<DownloadIcon />} onClick={exportCsv} disabled={visible.length === 0}>
+          Exportar CSV
+        </Button>
+      </Stack>
       <Typography variant="body2" color="text.secondary">
-        {visible.length} de {invoices.length} nota(s)
+        {visible.length} nota(s){totalUnits ? ` · ${totalUnits} unidade(s)` : ""}
+        {totalValue ? ` · ${money(totalValue)}` : ""}
+        {month ? ` · recebimentos de ${month.split("-").reverse().join("/")}` : ""}
       </Typography>
 
       {invoices.length === 0 && <Alert severity="info">Nenhuma nota fiscal recebida ainda.</Alert>}

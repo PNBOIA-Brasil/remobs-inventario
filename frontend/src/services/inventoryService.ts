@@ -59,6 +59,7 @@ export interface ReceiptPayload {
   document?: string;
   location_id: string;
   notes?: string;
+  received_date?: string;
   lines: Array<{ item_id: string; quantity: number; supplier_code?: string }>;
   invoice_id?: string;
   need_id?: string;
@@ -349,8 +350,10 @@ export const inventoryService = {
     return response.data;
   },
 
-  async listReceivedInvoices(): Promise<ApiList<ReceivedInvoice>> {
-    const response = await inventoryApi.get<ApiList<ReceivedInvoice>>("/inventory/receipts/invoices");
+  async listReceivedInvoices(params?: { dateFrom?: string; dateTo?: string }): Promise<ApiList<ReceivedInvoice>> {
+    const response = await inventoryApi.get<ApiList<ReceivedInvoice>>("/inventory/receipts/invoices", {
+      params: { date_from: params?.dateFrom || undefined, date_to: params?.dateTo || undefined },
+    });
     return response.data;
   },
 

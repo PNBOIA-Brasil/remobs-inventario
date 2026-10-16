@@ -11,6 +11,9 @@
 ### Adicionado — nome e número de série separados na leitura da nota fiscal
 - A leitura da nota passa a devolver, por linha, o nome limpo do produto (`name`) e o número de série/lote (`serial_number`), além da descrição crua. No cadastro rápido durante a conferência, o nome vem limpo e há o campo "Número de série" já preenchido quando a leitura o separa; ambos são editáveis e o `serial_number` é gravado no item. Backend: prompt do leitor de visão e `InvoiceLine` com `name`/`serial_number` (opcionais, sem migração). Plano: `planos/2026-10-16-nf-nome-numero-serie.md`.
 
+### Adicionado — relatório mensal de recebimentos com data informada
+- O recebimento (por nota fiscal ou manual) ganha o campo "Data de recebimento" (padrão hoje), que define a data da nota recebida. A tela de notas fiscais recebidas ganha filtro por mês, resumo (notas, unidades e valor do período) e exportação em CSV das notas visíveis. Backend: `received_date` no recebimento e filtro `date_from`/`date_to` em `GET /inventory/receipts/invoices`. Plano: `planos/2026-10-16-relatorio-mensal-recebimentos.md`.
+
 ### Adicionado — vincular a nota fiscal a um pedido de aquisição
 - A partir de um pedido na etapa "em compra" (tela Aquisições), os botões "Receber por NF" e "Entrada manual" iniciam o recebimento já vinculado ao pedido. A nota fiscal guarda o pedido (`received_invoices.acquisition_need_id`), a alocação abate esse pedido com preferência e a lista de notas recebidas mostra o processo vinculado. Backend: migração `0010_invoice_acquisition_need`, `need_id` no recebimento e `prefer_need_id` na alocação. Plano: `planos/2026-10-16-associar-nf-a-demanda-pedido.md`.
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import datetime, time, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -93,6 +93,8 @@ async def register_receipt(session: AsyncSession, *, user: AuthUser, payload: Re
 
     reason = receipt_reason(payload)
     now = datetime.now(timezone.utc)
+    # Data de recebimento: a informada pelo usuário (meia-noite UTC) ou o momento do registro.
+    received_at = datetime.combine(payload.received_date, time.min, tzinfo=timezone.utc) if payload.received_date else now
     if payload.invoice_id:
         if await session.get(ReceivedInvoice, payload.invoice_id):
             raise AppError("Esta nota fiscal já foi registrada.", code="invoice_already_received", status_code=409)
@@ -112,7 +114,7 @@ async def register_receipt(session: AsyncSession, *, user: AuthUser, payload: Re
                 notes=payload.notes,
                 received_by_id=user.id,
                 received_by_username=user.username,
-                received_at=now,
+                received_at=received_at,
             )
         )
     movements: list[StockMovement] = []

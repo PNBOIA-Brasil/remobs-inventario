@@ -51,10 +51,10 @@ describe("notas fiscais recebidas", () => {
 
     expect(await screen.findByText(/NF 004\.521/)).toBeTruthy();
     fireEvent.change(screen.getByLabelText(/Buscar por número/), { target: { value: "12345678" } });
-    expect(screen.getByText("1 de 2 nota(s)")).toBeTruthy();
+    expect(screen.getByText(/^1 nota\(s\)/)).toBeTruthy();
     expect(screen.queryByText(/NF 000\.777/)).toBeNull();
     fireEvent.change(screen.getByLabelText(/Buscar por número/), { target: { value: "nautica" } });
-    expect(screen.getByText("1 de 2 nota(s)")).toBeTruthy();
+    expect(screen.getByText(/^1 nota\(s\)/)).toBeTruthy();
 
     fireEvent.click(screen.getByText(/NF 004\.521/));
     expect(await screen.findByText("Bateria 12 V")).toBeTruthy();
