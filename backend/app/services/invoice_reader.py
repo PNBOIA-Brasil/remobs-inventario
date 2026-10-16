@@ -27,11 +27,12 @@ PROMPT = """Você lê notas fiscais brasileiras (DANFE de NF-e) em foto ou PDF, 
 Extraia os dados e responda SOMENTE com um objeto JSON, sem texto antes ou depois, neste formato:
 {"supplier_name": str|null, "supplier_cnpj": str|null, "number": str|null, "series": str|null,
  "issue_date": "AAAA-MM-DD"|null, "total_value": number|null, "access_key": str|null,
- "lines": [{"supplier_code": str|null, "description": str, "unit": str|null, "quantity": number,
-            "unit_value": number|null, "total_value": number|null, "ncm": str|null}],
+ "lines": [{"supplier_code": str|null, "description": str, "name": str|null, "serial_number": str|null,
+            "unit": str|null, "quantity": number, "unit_value": number|null, "total_value": number|null, "ncm": str|null}],
  "uncertain_fields": [str]}
 Regras: uma entrada em "lines" por produto da tabela "DADOS DOS PRODUTOS", na ordem da nota, somando todas as páginas;
-copie a descrição como está; na nota a vírgula é o separador decimal e o ponto o de milhar
+copie a descrição como está em "description"; em "name" ponha só o nome do produto (sem código, sem número de série, sem quantidade/unidade) e em "serial_number" o número de série ou lote quando aparecer na descrição (S/N, SN, Nº série, Serial, Lote), senão null;
+na nota a vírgula é o separador decimal e o ponto o de milhar
 ("50,000" = 50; "1.234,50" = 1234.5); no JSON use ponto decimal e nenhum separador de milhar;
 "uncertain_fields" lista os campos do cabeçalho que ficaram ilegíveis ou duvidosos (use os nomes das chaves).
 Se não for uma nota fiscal, responda {"lines": []}."""

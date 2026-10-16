@@ -8,6 +8,9 @@
 ### Alterado — recebimento por nota fiscal usa "cadastrar item novo" por padrão
 - Na conferência item a item, quando não há sugestão confiável do estoque, o padrão passa a ser "cadastrar item novo" (para quem tem `inventory:item:create`), já preenchido com o nome e a unidade da linha da nota. Uma sugestão confiável (código do fornecedor ou similaridade alta) continua vencendo. Somente frontend. Plano: `planos/2026-10-16-nf-padrao-item-novo.md`.
 
+### Adicionado — nome e número de série separados na leitura da nota fiscal
+- A leitura da nota passa a devolver, por linha, o nome limpo do produto (`name`) e o número de série/lote (`serial_number`), além da descrição crua. No cadastro rápido durante a conferência, o nome vem limpo e há o campo "Número de série" já preenchido quando a leitura o separa; ambos são editáveis e o `serial_number` é gravado no item. Backend: prompt do leitor de visão e `InvoiceLine` com `name`/`serial_number` (opcionais, sem migração). Plano: `planos/2026-10-16-nf-nome-numero-serie.md`.
+
 ## [2026-10-13]
 
 ### Alterado — paiol cadastra item novo no recebimento por nota fiscal

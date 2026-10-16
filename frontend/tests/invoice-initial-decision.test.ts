@@ -28,4 +28,14 @@ describe("initialDecision — padrão da conferência por nota fiscal", () => {
     const decision = initialDecision(line, [{ item_id: "x", score: 0.9, match: "similar" }], true);
     expect(decision.choice).toBe("x");
   });
+
+  it("usa o nome limpo e o número de série lidos da nota, quando vierem", () => {
+    const decision = initialDecision(
+      { ...line, name: "Furadeira de impacto", serial_number: "SN-12345" },
+      [],
+      true,
+    );
+    expect(decision.newName).toBe("Furadeira de impacto");
+    expect(decision.newSerial).toBe("SN-12345");
+  });
 });

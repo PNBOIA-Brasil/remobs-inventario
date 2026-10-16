@@ -53,6 +53,7 @@ interface Decision {
   newName: string;
   newType: ItemType;
   newUnit: string;
+  newSerial: string;
   quantity: string;
   photo: File | null;
   photoUrl: string | null;
@@ -103,9 +104,10 @@ export function initialDecision(line: InvoiceLine, suggestions: InvoiceReadResul
     // Sugestão confiável vence; senão, cadastrar item novo é o padrão (quem pode criar).
     choice: sure ? best.item_id : canCreate ? "new" : null,
     searchItem: null,
-    newName: sentence(line.description),
+    newName: sentence(line.name || line.description),
     newType: "consumable",
     newUnit: (line.unit || "un").toLowerCase(),
+    newSerial: (line.serial_number ?? "").trim(),
     quantity: String(Math.max(1, Math.round(line.quantity))),
     photo: null,
     photoUrl: null,
@@ -262,6 +264,7 @@ export default function InvoiceReceiptPage() {
         const created = await inventoryService.createItem({
           item_type: decision.newType,
           name: decision.newName.trim(),
+          serial_number: decision.newSerial.trim() || undefined,
           unit: decision.newUnit.trim(),
           location_name: location?.name,
           invoice_number: header.number || undefined,
@@ -613,6 +616,7 @@ export default function InvoiceReceiptPage() {
                           <ToggleButton value="permanent_component">Permanente</ToggleButton>
                         </ToggleButtonGroup>
                         <TextField label="Unidade" value={decision.newUnit} onChange={(e) => update(index, { newUnit: e.target.value })} required />
+                        <TextField label="Número de série" value={decision.newSerial} onChange={(e) => update(index, { newSerial: e.target.value })} helperText="Opcional. Lido da nota quando disponível." />
                       </Stack>
                     )}
 

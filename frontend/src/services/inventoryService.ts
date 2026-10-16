@@ -112,6 +112,8 @@ export function saveBlob(blob: Blob, name: string): void {
 export interface InvoiceLine {
   supplier_code: string | null;
   description: string;
+  name?: string | null;
+  serial_number?: string | null;
   unit: string | null;
   quantity: number;
   unit_value: number | null;

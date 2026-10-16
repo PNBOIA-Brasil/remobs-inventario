@@ -43,6 +43,9 @@ class ReceiptRead(BaseModel):
 class InvoiceLine(BaseModel):
     supplier_code: str | None = None
     description: str = ""
+    # Nome limpo do produto e número de série/lote, separados da descrição pela leitura.
+    name: str | None = None
+    serial_number: str | None = None
     unit: str | None = None
     quantity: float = 0
     unit_value: float | None = None
