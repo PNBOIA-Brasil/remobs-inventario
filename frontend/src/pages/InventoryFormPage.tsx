@@ -366,7 +366,6 @@ export default function InventoryFormPage() {
                 hidden
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
-                capture="environment"
                 onChange={(event) => {
                   const file = event.target.files?.[0];
                   event.target.value = "";

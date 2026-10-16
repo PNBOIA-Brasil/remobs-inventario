@@ -41,7 +41,11 @@ function monthRange(month: string): { dateFrom?: string; dateTo?: string } {
   return { dateFrom: `${month}-01`, dateTo: `${month}-${String(lastDay).padStart(2, "0")}` };
 }
 
-const csvCell = (value: string) => (/[";\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value);
+/** Célula CSV: neutraliza fórmula (=, +, -, @ vindos da leitura da nota) e escapa ; " e quebras. */
+function csvCell(raw: string): string {
+  const value = /^[=+\-@]/.test(raw) ? `'${raw}` : raw;
+  return /[";\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
 
 export default function ReceivedInvoicesPage() {
   const [invoices, setInvoices] = useState<ReceivedInvoice[]>([]);
@@ -112,7 +116,7 @@ export default function ReceivedInvoicesPage() {
       invoice.origin ? ORIGIN_LABEL[invoice.origin] ?? invoice.origin : "",
       String(invoice.units),
       String(invoice.lines),
-      invoice.total_value != null ? String(invoice.total_value) : "",
+      invoice.total_value != null ? invoice.total_value.toFixed(2).replace(".", ",") : "",
       invoice.acquisition_process_number ?? "",
     ]);
     const csv = [header, ...rows].map((cols) => cols.map(csvCell).join(";")).join("\r\n");

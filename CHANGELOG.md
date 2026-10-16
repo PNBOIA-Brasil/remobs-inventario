@@ -2,6 +2,14 @@
 
 ## [2026-10-16]
 
+### Corrigido — revisão das entregas do dia
+- Data de recebimento: dia passado é gravado ao meio-dia de Brasília (meia-noite UTC aparecia como o dia anterior), o padrão do campo usa a data local e o filtro do mês usa limites de Brasília. O campo saiu da entrada manual, onde não tinha efeito (sem nota fiscal não há registro no relatório).
+- Sincronização PNBOIA: plataforma existente só tem tipo e status atualizados; fabricante, modelo e descrição só são preenchidos se estiverem vazios, para não apagar o que o import completo gravou. Fabricante/modelo iguais ao tipo da boia (sem metadados) não viram dado. Plataforma excluída com o mesmo nome é restaurada em vez de gerar erro de nome duplicado.
+- Termo de Cautela: a devolução prevista não muda mais de dia por fuso.
+- CSV do relatório: valor com vírgula decimal e células iniciadas por `=`, `+`, `-` ou `@` neutralizadas.
+- Foto do item: o botão aceita galeria além da câmera e o backend recusa foto acima de 15 MB.
+- Recebimento por nota: o aviso de número patrimonial aparece só para item permanente.
+
 ### Alterado — consumível não exige número patrimonial
 - O cadastro de item (`POST /inventory/items`) deixa de gerar número patrimonial para itens do tipo `consumable`; o `REM-` continua sendo gerado/validado apenas para `permanent_component`. O formulário de item esconde o campo "Patrimônio" quando o tipo é consumível. Banco e listagem já aceitavam patrimônio nulo. Consumíveis já existentes mantêm o número atual. Plano: `planos/2026-10-16-consumivel-sem-patrimonio.md`.
 
@@ -24,7 +32,7 @@
 - O detalhe de uma nota fiscal recebida ganha o botão "Imprimir termo de recebimento", que gera um documento A4 imprimível com o cabeçalho da nota, os itens recebidos (patrimônio, tipo, quantidade), total, observações e campos de assinatura. Somente frontend, impressão em janela própria (`window.print()`), sem nova dependência. Plano: `planos/2026-10-16-termo-recebimento-provisorio.md`.
 
 ### Adicionado — relatório mensal de recebimentos com data informada
-- O recebimento (por nota fiscal ou manual) ganha o campo "Data de recebimento" (padrão hoje), que define a data da nota recebida. A tela de notas fiscais recebidas ganha filtro por mês, resumo (notas, unidades e valor do período) e exportação em CSV das notas visíveis. Backend: `received_date` no recebimento e filtro `date_from`/`date_to` em `GET /inventory/receipts/invoices`. Plano: `planos/2026-10-16-relatorio-mensal-recebimentos.md`.
+- O recebimento por nota fiscal ganha o campo "Data de recebimento" (padrão hoje, no fuso de Brasília), que define a data da nota recebida; dia passado é gravado ao meio-dia de Brasília e o filtro do mês usa limites de Brasília. A tela de notas fiscais recebidas ganha filtro por mês, resumo (notas, unidades e valor do período) e exportação em CSV das notas visíveis. Backend: `received_date` no recebimento e filtro `date_from`/`date_to` em `GET /inventory/receipts/invoices`. Plano: `planos/2026-10-16-relatorio-mensal-recebimentos.md`.
 
 ### Adicionado — vincular a nota fiscal a um pedido de aquisição
 - A partir de um pedido na etapa "em compra" (tela Aquisições), os botões "Receber por NF" e "Entrada manual" iniciam o recebimento já vinculado ao pedido. A nota fiscal guarda o pedido (`received_invoices.acquisition_need_id`), a alocação abate esse pedido com preferência e a lista de notas recebidas mostra o processo vinculado. Backend: migração `0010_invoice_acquisition_need`, `need_id` no recebimento e `prefer_need_id` na alocação. Plano: `planos/2026-10-16-associar-nf-a-demanda-pedido.md`.

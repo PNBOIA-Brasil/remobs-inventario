@@ -82,16 +82,19 @@ async def preview_pnboia_platforms(
         payloads = await asyncio.to_thread(fetch_platform_payloads, include_metadata=False)
     except Exception as exc:  # noqa: BLE001 - a API externa pode falhar de várias formas
         raise AppError("Não foi possível consultar a API PNBOIA agora.", code="pnboia_unavailable", status_code=502) from exc
-    existing = {
-        name.lower()
-        for (name,) in await session.execute(select(Platform.name).where(Platform.deleted_at.is_(None)))
-    }
+    # Inclui excluídas: o nome é único e a sincronização restaura a excluída em vez de duplicar.
+    existing = {name.lower() for (name,) in await session.execute(select(Platform.name))}
+
+    def real(value: str | None, payload: dict) -> str | None:
+        # Sem metadados, fabricante e modelo caem no tipo da boia ("BOIA"): não é dado real.
+        return None if not value or value.lower() == payload["platform_type"].lower() else value
+
     items = [
         {
             "name": payload["name"],
             "platform_type": payload["platform_type"],
-            "manufacturer": payload.get("manufacturer"),
-            "model": payload.get("model"),
+            "manufacturer": real(payload.get("manufacturer"), payload),
+            "model": real(payload.get("model"), payload),
             "operational_status": payload["operational_status"],
             "description": payload.get("description"),
             "external_id": payload.get("external_id"),
@@ -109,15 +112,18 @@ async def sync_pnboia_platforms(
     user: AuthUser = Depends(require_any_permission(PNBOIA_MANAGE)),
     session: AsyncSession = Depends(get_async_session),
 ) -> dict:
-    """Grava as plataformas confirmadas pelo usuário: cria as novas e atualiza as existentes (casadas por nome)."""
+    """Grava as plataformas confirmadas: cria as novas; nas existentes (casadas por nome) atualiza tipo e
+    status e só preenche fabricante, modelo e descrição vazios, sem apagar o que o import completo gravou."""
     created = updated = 0
     for item in payload.platforms:
-        existing = await session.scalar(
-            select(Platform).where(func.lower(Platform.name) == item.name.lower(), Platform.deleted_at.is_(None))
-        )
+        existing = await session.scalar(select(Platform).where(func.lower(Platform.name) == item.name.lower()))
         if existing:
-            for field, value in item.model_dump().items():
-                setattr(existing, field, value)
+            existing.deleted_at = None  # nome é único: restaura a excluída em vez de violar a constraint
+            existing.platform_type = item.platform_type
+            existing.operational_status = item.operational_status
+            for field in ("manufacturer", "model", "description"):
+                if not getattr(existing, field) and getattr(item, field):
+                    setattr(existing, field, getattr(item, field))
             target, action, updated = existing, "platform_updated", updated + 1
         else:
             target = Platform(**item.model_dump())

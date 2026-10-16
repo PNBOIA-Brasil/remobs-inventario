@@ -18,6 +18,8 @@ const TERM_CSS =
   ".sig{border-top:.3mm solid #111827;padding-top:2mm;text-align:center;font-size:9pt}" +
   ".foot{margin-top:10mm;font-size:8pt;color:#6b7280}";
 
+// Data pura (AAAA-MM-DD) sem passar por Date: new Date("2026-09-25") é UTC e no Brasil vira 24/09.
+const fmtDay = (iso: string | null) => (iso ? iso.split("-").reverse().join("/") : "—");
 const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("pt-BR") : "—");
 
 function CustodyTerm({ order }: { order: WithdrawalOrder }) {
@@ -27,7 +29,7 @@ function CustodyTerm({ order }: { order: WithdrawalOrder }) {
     ["Solicitante", order.requested_by_username],
     ["Finalidade", purposeLabel(order)],
     ["Destino", destino],
-    ["Devolução prevista", order.purpose === "emprestimo" ? fmtDate(order.due_date) : "—"],
+    ["Devolução prevista", order.purpose === "emprestimo" ? fmtDay(order.due_date) : "—"],
     ["Entregue por", order.delivered_by_username ?? "—"],
     ["Entregue em", fmtDate(order.delivered_at)],
     ["Emitido em", new Date().toLocaleString("pt-BR")],
@@ -65,7 +67,7 @@ function CustodyTerm({ order }: { order: WithdrawalOrder }) {
       </table>
       <p className="decl">
         Declaro ter recebido em cautela o material relacionado acima, comprometendo-me a zelar pela sua guarda e conservação e a
-        devolvê-lo nas mesmas condições{order.purpose === "emprestimo" && order.due_date ? ` até ${fmtDate(order.due_date)}` : ""}.
+        devolvê-lo nas mesmas condições{order.purpose === "emprestimo" && order.due_date ? ` até ${fmtDay(order.due_date)}` : ""}.
       </p>
       <div className="sigs">
         <div className="sig">

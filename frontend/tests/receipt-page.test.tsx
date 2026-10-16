@@ -54,7 +54,6 @@ describe("entrada de material", () => {
         origin: "compra",
         location_id: "loc-a",
         document: "NF 1",
-        received_date: expect.any(String),
         lines: [{ item_id: "novo", quantity: 10 }],
       }),
     );

@@ -226,7 +226,7 @@ export default function PlatformsPage() {
           {!previewLoading && preview && (
             <Stack spacing={1} sx={{ pt: 1 }}>
               <Typography variant="body2" color="text.secondary">
-                Confira as plataformas retornadas e escolha quais gravar. "Nova" é criada; "atualiza" sobrescreve a existente de mesmo nome.
+                Confira as plataformas retornadas e escolha quais gravar. "Nova" é criada; "atualiza" muda tipo e status da existente de mesmo nome e só preenche fabricante, modelo e descrição vazios.
               </Typography>
               {previewErrors.length > 0 && <Alert severity="warning">{previewErrors.length} aviso(s) ao ler metadados de boias.</Alert>}
               {preview.length === 0 && <Alert severity="info">A API não retornou plataformas.</Alert>}

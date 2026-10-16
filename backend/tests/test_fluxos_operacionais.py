@@ -404,7 +404,7 @@ def test_recebimento_com_data_informada_entra_no_relatorio_do_mes(client: TestCl
             "origin": "compra",
             "location_id": location_id,
             "invoice_id": invoice_id,
-            "received_date": "2026-03-15",
+            "received_date": "2026-03-31",
             "lines": [{"item_id": item_id, "quantity": 2}],
         },
     )
@@ -453,5 +453,19 @@ def test_sincroniza_plataformas_pnboia(client: TestClient, monkeypatch) -> None:
     assert any(platform["name"] == "Boia PNBOIA Teste 99" for platform in listed)
 
     assert client.get("/platforms/pnboia/preview", headers=ADMIN).json()["items"][0]["exists"] is True
-    sync2 = client.post("/platforms/pnboia/sync", headers=ADMIN, json={"platforms": [confirmed]})
+
+    # Existente: muda status, mas não apaga a descrição já gravada; excluída é restaurada, sem 500.
+    platform_id = next(p["id"] for p in listed if p["name"] == "Boia PNBOIA Teste 99")
+    assert client.request("DELETE", f"/platforms/{platform_id}", headers=ADMIN, json={"reason": "Teste de exclusão."}).status_code == 200
+    poorer = {**confirmed, "operational_status": "manutencao", "description": "Resumo sem metadados."}
+    sync2 = client.post("/platforms/pnboia/sync", headers=ADMIN, json={"platforms": [poorer]})
+    assert sync2.status_code == 200, sync2.text
     assert sync2.json() == {"created": 0, "updated": 1}
+    restored = client.get(f"/platforms/{platform_id}", headers=ADMIN).json()
+    assert restored["operational_status"] == "manutencao"
+    assert restored["description"] == "Boia de teste da API."
+
+    # Sem metadados, fabricante/modelo iguais ao tipo não viram dado.
+    payloads[0].update(manufacturer="BOIA", model="BOIA")
+    item = client.get("/platforms/pnboia/preview", headers=ADMIN).json()["items"][0]
+    assert item["manufacturer"] is None and item["model"] is None

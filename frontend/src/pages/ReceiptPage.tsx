@@ -46,7 +46,6 @@ export default function ReceiptPage() {
   const [loading, setLoading] = useState(true);
   const [origin, setOrigin] = useState<Origin>("compra");
   const [document, setDocument] = useState("");
-  const [receiptDate, setReceiptDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [locationId, setLocationId] = useState("");
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<ReceiptLine[]>([emptyLine()]);
@@ -125,7 +124,6 @@ export default function ReceiptPage() {
         ...(document.trim() ? { document: document.trim() } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
         ...(needId ? { need_id: needId } : {}),
-        ...(receiptDate ? { received_date: receiptDate } : {}),
         lines: lines.map((line) => ({ item_id: line.item!.id, quantity: Number(line.quantity) })),
       });
       showSuccess(`Entrada registrada: ${result.total_quantity} unidade(s).`);
@@ -165,14 +163,6 @@ export default function ReceiptPage() {
             </ToggleButtonGroup>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <TextField label="Nota fiscal ou documento" value={document} onChange={(event) => setDocument(event.target.value)} fullWidth />
-              <TextField
-                label="Data de recebimento"
-                type="date"
-                value={receiptDate}
-                onChange={(event) => setReceiptDate(event.target.value)}
-                slotProps={{ inputLabel: { shrink: true } }}
-                sx={{ width: { sm: 200 } }}
-              />
               <TextField select label="Guardar em" value={locationId} onChange={(event) => setLocationId(event.target.value)} required fullWidth>
                 {locations.map((location) => (
                   <MenuItem key={location.id} value={location.id}>

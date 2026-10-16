@@ -149,7 +149,8 @@ export default function InvoiceReceiptPage() {
   const [invoice, setInvoice] = useState<InvoiceReadResult | null>(null);
   const [header, setHeader] = useState<Header>({ supplier_name: "", supplier_cnpj: "", number: "", series: "", issue_date: "", total_value: "" });
   const [origin, setOrigin] = useState<Origin>("compra");
-  const [receiptDate, setReceiptDate] = useState(() => new Date().toISOString().slice(0, 10));
+  // Data local (toISOString é UTC: à noite viraria o dia seguinte).
+  const [receiptDate, setReceiptDate] = useState(() => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10));
   const [locationId, setLocationId] = useState("");
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [index, setIndex] = useState(0);
@@ -629,7 +630,7 @@ export default function InvoiceReceiptPage() {
                     )}
                     {decision.choice === "new" && (
                       <Stack spacing={2} sx={{ p: 1.5, border: "1px solid #bfdbfe", bgcolor: "#eff6ff", borderRadius: 2 }}>
-                        <Typography variant="body2">Os dados vieram da nota; ajuste se precisar. O número patrimonial é gerado ao registrar.</Typography>
+                        <Typography variant="body2">Os dados vieram da nota; ajuste se precisar.{decision.newType === "permanent_component" ? " O número patrimonial é gerado ao registrar." : ""}</Typography>
                         <TextField label="Nome do item" value={decision.newName} onChange={(e) => update(index, { newName: e.target.value })} required />
                         <ToggleButtonGroup exclusive fullWidth color="primary" aria-label="Tipo do item" value={decision.newType} onChange={(_e, value: ItemType | null) => value && update(index, { newType: value })}>
                           <ToggleButton value="consumable">Consumível</ToggleButton>

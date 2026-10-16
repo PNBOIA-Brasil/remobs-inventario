@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, time, timezone
+from datetime import datetime, time, timedelta, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -24,6 +24,8 @@ from app.services.inventory_service import (
 )
 
 ORIGIN_LABEL = {"compra": "Compra", "doacao": "Doação", "transferencia": "Transferência"}
+# ponytail: fuso fixo de Brasília (sem horário de verão desde 2019); ZoneInfo se voltar a ter.
+LOCAL_TZ = timezone(timedelta(hours=-3))
 PERMANENT = "permanent_component"
 
 
@@ -93,8 +95,12 @@ async def register_receipt(session: AsyncSession, *, user: AuthUser, payload: Re
 
     reason = receipt_reason(payload)
     now = datetime.now(timezone.utc)
-    # Data de recebimento: a informada pelo usuário (meia-noite UTC) ou o momento do registro.
-    received_at = datetime.combine(payload.received_date, time.min, tzinfo=timezone.utc) if payload.received_date else now
+    # Data de recebimento: hoje (ou sem data) usa o momento do registro; dia passado fica ao meio-dia
+    # de Brasília, para não mudar de dia ao exibir nem cair no mês errado do relatório.
+    if payload.received_date and payload.received_date != now.astimezone(LOCAL_TZ).date():
+        received_at = datetime.combine(payload.received_date, time(12), tzinfo=LOCAL_TZ)
+    else:
+        received_at = now
     if payload.invoice_id:
         if await session.get(ReceivedInvoice, payload.invoice_id):
             raise AppError("Esta nota fiscal já foi registrada.", code="invoice_already_received", status_code=409)

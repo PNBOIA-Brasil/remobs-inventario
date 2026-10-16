@@ -47,6 +47,8 @@ from app.services.inventory_service import (
 
 router = APIRouter(prefix="/inventory/items", tags=["inventory"])
 
+MAX_PHOTO_BYTES = 15 * 1024 * 1024  # mesmo teto da nota fiscal no frontend
+
 
 @router.get("", response_model=InventoryListRead)
 async def list_items(
@@ -95,6 +97,8 @@ async def read_item_from_photo(
     content = await file.read()
     if not content:
         raise AppError("Arquivo vazio não é permitido.", code="empty_file", status_code=400)
+    if len(content) > MAX_PHOTO_BYTES:
+        raise AppError("Foto acima de 15 MB.", code="photo_too_large", status_code=413)
     return await asyncio.to_thread(read_item_photo, file.content_type or "", content)
 
 

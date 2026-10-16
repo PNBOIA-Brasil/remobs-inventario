@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import date, datetime, time, timedelta
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 from fastapi.responses import Response
@@ -20,7 +20,7 @@ from app.services import file_storage
 from app.services.file_service import attach_upload, get_entity_file_or_404, list_entity_files
 from app.services.inventory_service import get_item_or_404, serialize_items_bulk, serialize_movement
 from app.services.invoice_reader import read_invoice, suggest_items
-from app.services.receipt_service import find_already_received, register_receipt, summarize_invoices
+from app.services.receipt_service import LOCAL_TZ, find_already_received, register_receipt, summarize_invoices
 
 router = APIRouter(prefix="/inventory", tags=["receipts"])
 
@@ -145,10 +145,11 @@ async def list_received_invoices(
     """Notas fiscais recebidas, da mais recente para a mais antiga; filtra pelo período de recebimento."""
     # ponytail: teto de 500 notas por consulta; com filtro de período a tela gera o relatório do mês.
     query = select(ReceivedInvoice)
+    # Limites do período no fuso de Brasília: nota recebida às 22h do dia 31 fica no mês certo.
     if date_from:
-        query = query.where(ReceivedInvoice.received_at >= datetime.combine(date_from, time.min, tzinfo=timezone.utc))
+        query = query.where(ReceivedInvoice.received_at >= datetime.combine(date_from, time.min, tzinfo=LOCAL_TZ))
     if date_to:
-        query = query.where(ReceivedInvoice.received_at < datetime.combine(date_to + timedelta(days=1), time.min, tzinfo=timezone.utc))
+        query = query.where(ReceivedInvoice.received_at < datetime.combine(date_to + timedelta(days=1), time.min, tzinfo=LOCAL_TZ))
     query = query.order_by(ReceivedInvoice.received_at.desc()).limit(500)
     items = await summarize_invoices(session, list((await session.execute(query)).scalars()))
     return {"items": items, "total": len(items)}
