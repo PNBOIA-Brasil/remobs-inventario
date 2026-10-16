@@ -34,7 +34,7 @@ import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Typography from "@mui/material/Typography";
 import axios from "axios";
 import { ChangeEvent, ReactNode, useEffect, useMemo, useState } from "react";
-import { Link as RouterLink, useNavigate } from "react-router-dom";
+import { Link as RouterLink, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import LoadingState from "../components/LoadingState";
 import { printLabels } from "../labelPrint";
@@ -156,6 +156,10 @@ export default function InvoiceReceiptPage() {
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState<DoneSummary | null>(null);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const routerLocation = useLocation();
+  const needId = searchParams.get("need") ?? undefined;
+  const needLabel = (routerLocation.state as { needLabel?: string } | null)?.needLabel;
   const { hasPermission } = useAuth();
   const { showSuccess, showError } = useSnackbar();
   const canCreate = hasPermission("inventory:item:create");
@@ -302,6 +306,7 @@ export default function InvoiceReceiptPage() {
         ...(noteText ? { notes: noteText } : {}),
         lines: [...merged.values()].map(({ item_id, quantity, supplier_code }) => ({ item_id, quantity, ...(supplier_code ? { supplier_code } : {}) })),
         invoice_id: invoice.invoice_id,
+        ...(needId ? { need_id: needId } : {}),
         ...(header.number.trim() ? { invoice_number: header.number.trim() } : {}),
         ...(header.series.trim() ? { invoice_series: header.series.trim() } : {}),
         ...(header.supplier_name.trim() ? { supplier_name: header.supplier_name.trim() } : {}),
@@ -396,6 +401,9 @@ export default function InvoiceReceiptPage() {
             </Step>
           ))}
         </Stepper>
+      )}
+      {needId && stage !== "done" && (
+        <Alert severity="info">Entrada vinculada ao pedido de aquisição{needLabel ? ` de ${needLabel}` : ""}.</Alert>
       )}
 
       {stage === "files" && (

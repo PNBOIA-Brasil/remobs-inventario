@@ -61,6 +61,7 @@ export interface ReceiptPayload {
   notes?: string;
   lines: Array<{ item_id: string; quantity: number; supplier_code?: string }>;
   invoice_id?: string;
+  need_id?: string;
   invoice_number?: string;
   invoice_series?: string;
   supplier_name?: string;
@@ -84,6 +85,8 @@ export interface ReceivedInvoice {
   notes: string | null;
   received_by_username: string;
   received_at: string;
+  acquisition_need_id?: string | null;
+  acquisition_process_number?: string | null;
   lines: number;
   units: number;
   files: number;

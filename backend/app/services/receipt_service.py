@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AppError
 from app.core.security import AuthUser
+from app.models.acquisition import AcquisitionNeed
 from app.models.file import EntityFile, FileMetadata
 from app.models.inventory import InventoryItem, Location, ReceivedInvoice, StockBalance, StockMovement
 from app.schemas.receipt import ReceiptCreate
@@ -84,6 +85,8 @@ async def register_receipt(session: AsyncSession, *, user: AuthUser, payload: Re
     location = await session.get(Location, payload.location_id)
     if not location or not location.is_active:
         raise AppError("Local de destino não encontrado.", code="location_not_found", status_code=404)
+    if payload.need_id and not await session.get(AcquisitionNeed, payload.need_id):
+        raise AppError("Pedido de aquisição não encontrado.", code="acquisition_not_found", status_code=404)
     item_ids = [line.item_id for line in payload.lines]
     if len(set(item_ids)) != len(item_ids):
         raise AppError("O mesmo material não pode repetir na entrada.", code="duplicate_line", status_code=422)
@@ -105,6 +108,7 @@ async def register_receipt(session: AsyncSession, *, user: AuthUser, payload: Re
                 access_key=digits(payload.access_key) or None,
                 origin=payload.origin,
                 location_id=location.id,
+                acquisition_need_id=payload.need_id,
                 notes=payload.notes,
                 received_by_id=user.id,
                 received_by_username=user.username,
@@ -129,7 +133,7 @@ async def register_receipt(session: AsyncSession, *, user: AuthUser, payload: Re
             targets = [(item, line.quantity)]
 
         # Baixa a necessidade antes do alerta: se ainda faltar, o alerta reabre uma sugestão nova.
-        fulfilled = await allocate_receipt(session, item_id=item.id, quantity=line.quantity)
+        fulfilled = await allocate_receipt(session, item_id=item.id, quantity=line.quantity, prefer_need_id=payload.need_id)
         for target, quantity in targets:
             balance = await get_or_create_balance(session, item_id=target.id, location_id=location.id)
             before = balance.quantity
@@ -210,6 +214,12 @@ async def summarize_invoices(session: AsyncSession, invoices: list[ReceivedInvoi
         ).all()
     )
     locations = {location.id: location.name for location in (await session.execute(select(Location))).scalars()}
+    need_ids = {invoice.acquisition_need_id for invoice in invoices if invoice.acquisition_need_id}
+    needs = (
+        {need.id: need for need in (await session.execute(select(AcquisitionNeed).where(AcquisitionNeed.id.in_(need_ids)))).scalars()}
+        if need_ids
+        else {}
+    )
     return [
         {
             "id": invoice.id,
@@ -225,6 +235,10 @@ async def summarize_invoices(session: AsyncSession, invoices: list[ReceivedInvoi
             "notes": invoice.notes,
             "received_by_username": invoice.received_by_username,
             "received_at": invoice.received_at,
+            "acquisition_need_id": invoice.acquisition_need_id,
+            "acquisition_process_number": (
+                needs[invoice.acquisition_need_id].process_number if invoice.acquisition_need_id in needs else None
+            ),
             "lines": totals.get(invoice.id, (0, 0))[0],
             "units": int(totals.get(invoice.id, (0, 0))[1] or 0),
             "files": files.get(str(invoice.id), 0),

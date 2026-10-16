@@ -128,6 +128,11 @@ export default function ReceivedInvoicesPage() {
                   <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                     <Chip size="small" label={`${invoice.units} unidade(s) · ${invoice.lines} entrada(s)`} />
                     {invoice.origin && <Chip size="small" label={ORIGIN_LABEL[invoice.origin] ?? invoice.origin} />}
+                    {invoice.acquisition_process_number ? (
+                      <Chip size="small" variant="outlined" color="info" label={`Pedido ${invoice.acquisition_process_number}`} />
+                    ) : invoice.acquisition_need_id ? (
+                      <Chip size="small" variant="outlined" color="info" label="Pedido vinculado" />
+                    ) : null}
                     {invoice.notes?.includes("Divergências") && <Chip size="small" color="warning" label="Com divergência" />}
                   </Stack>
                 </Stack>

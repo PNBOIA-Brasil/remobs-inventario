@@ -11,6 +11,9 @@
 ### Adicionado — nome e número de série separados na leitura da nota fiscal
 - A leitura da nota passa a devolver, por linha, o nome limpo do produto (`name`) e o número de série/lote (`serial_number`), além da descrição crua. No cadastro rápido durante a conferência, o nome vem limpo e há o campo "Número de série" já preenchido quando a leitura o separa; ambos são editáveis e o `serial_number` é gravado no item. Backend: prompt do leitor de visão e `InvoiceLine` com `name`/`serial_number` (opcionais, sem migração). Plano: `planos/2026-10-16-nf-nome-numero-serie.md`.
 
+### Adicionado — vincular a nota fiscal a um pedido de aquisição
+- A partir de um pedido na etapa "em compra" (tela Aquisições), os botões "Receber por NF" e "Entrada manual" iniciam o recebimento já vinculado ao pedido. A nota fiscal guarda o pedido (`received_invoices.acquisition_need_id`), a alocação abate esse pedido com preferência e a lista de notas recebidas mostra o processo vinculado. Backend: migração `0010_invoice_acquisition_need`, `need_id` no recebimento e `prefer_need_id` na alocação. Plano: `planos/2026-10-16-associar-nf-a-demanda-pedido.md`.
+
 ### Adicionado — agrupar itens iguais na listagem
 - A listagem de itens ganha o botão "Agrupar iguais": na visão agrupada, itens com o mesmo tipo, nome, marca e modelo viram um card único com a quantidade de unidades e o saldo somado, útil para permanentes que geram um registro por peça. Clicar no grupo busca pelo nome e volta à visão detalhada; seleção e impressão de etiquetas por unidade seguem na visão padrão. Somente frontend, agrupamento no cliente. Plano: `planos/2026-10-16-listagem-agrupar-itens-iguais.md`.
 

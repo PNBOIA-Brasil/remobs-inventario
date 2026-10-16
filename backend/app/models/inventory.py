@@ -138,6 +138,8 @@ class ReceivedInvoice(Base):
     access_key: Mapped[str | None] = mapped_column(String(60), nullable=True, index=True)
     origin: Mapped[str | None] = mapped_column(String(32), nullable=True)
     location_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey(table_ref("locations")), nullable=True)
+    # Pedido de aquisição vinculado (sem FK, como stock_movements.invoice_id); o app valida.
+    acquisition_need_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True, index=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     received_by_id: Mapped[int] = mapped_column(Integer, nullable=False)
     received_by_username: Mapped[str] = mapped_column(String(160), nullable=False)

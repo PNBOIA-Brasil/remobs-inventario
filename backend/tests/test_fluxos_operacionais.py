@@ -359,3 +359,36 @@ def test_patrimonio_gerado_unico_e_imutavel(client: TestClient) -> None:
     edited = client.patch(f"/inventory/items/{first_id}", headers=ADMIN, json={"patrimony_number": "OUTRO", "reason": "Teste."})
     assert edited.status_code == 200, edited.text
     assert edited.json()["patrimony_number"] == first
+
+
+def test_recebimento_por_nota_vincula_pedido_de_aquisicao(client: TestClient) -> None:
+    item_id, location_id = _item(client, quantity=0, item_type="consumable")
+    need = client.post(
+        "/inventory/acquisitions",
+        headers=ADMIN,
+        json={"item_id": item_id, "quantity": 5, "priority": "media", "reason": "Repor estoque do item."},
+    )
+    assert need.status_code == 201, need.text
+    need_id = need.json()["id"]
+
+    invoice_id = str(uuid.uuid4())
+    receipt = client.post(
+        "/inventory/receipts",
+        headers=ADMIN,
+        json={
+            "origin": "compra",
+            "location_id": location_id,
+            "invoice_id": invoice_id,
+            "need_id": need_id,
+            "lines": [{"item_id": item_id, "quantity": 3}],
+        },
+    )
+    assert receipt.status_code == 201, receipt.text
+
+    detail = client.get(f"/inventory/receipts/invoices/{invoice_id}", headers=ADMIN)
+    assert detail.status_code == 200, detail.text
+    assert detail.json()["acquisition_need_id"] == need_id
+
+    needs = client.get("/inventory/acquisitions", headers=ADMIN).json()["items"]
+    linked = next(entry for entry in needs if entry["id"] == need_id)
+    assert linked["received_quantity"] == 3

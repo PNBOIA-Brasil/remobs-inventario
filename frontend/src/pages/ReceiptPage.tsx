@@ -15,7 +15,7 @@ import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Typography from "@mui/material/Typography";
 import { FormEvent, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import LoadingState from "../components/LoadingState";
 import { inventoryService, type ReceiptPayload } from "../services/inventoryService";
@@ -54,6 +54,10 @@ export default function ReceiptPage() {
   const [quickSaving, setQuickSaving] = useState(false);
   const [quick, setQuick] = useState({ name: "", itemType: "consumable" as "consumable" | "permanent_component", unit: "un" });
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const routerLocation = useLocation();
+  const needId = searchParams.get("need") ?? undefined;
+  const needLabel = (routerLocation.state as { needLabel?: string } | null)?.needLabel;
   const { hasPermission } = useAuth();
   const { showSuccess, showError } = useSnackbar();
   const canQuickCreate = hasPermission("inventory:item:create");
@@ -119,6 +123,7 @@ export default function ReceiptPage() {
         location_id: locationId,
         ...(document.trim() ? { document: document.trim() } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
+        ...(needId ? { need_id: needId } : {}),
         lines: lines.map((line) => ({ item_id: line.item!.id, quantity: Number(line.quantity) })),
       });
       showSuccess(`Entrada registrada: ${result.total_quantity} unidade(s).`);
@@ -141,6 +146,7 @@ export default function ReceiptPage() {
             <Typography variant="body2" color="text.secondary">
               Confira o material com o documento e informe onde ele será guardado. O saldo sobe na hora.
             </Typography>
+            {needId && <Alert severity="info">Entrada vinculada ao pedido de aquisição{needLabel ? ` de ${needLabel}` : ""}.</Alert>}
             <ToggleButtonGroup
               exclusive
               fullWidth

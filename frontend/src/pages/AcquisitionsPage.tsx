@@ -205,7 +205,8 @@ export default function AcquisitionsPage() {
                   )}
                   {need.status === "em_compra" && (
                     <>
-                      <Button variant="contained" onClick={() => navigate("/app/receipts/new")}>Registrar entrada</Button>
+                      <Button variant="contained" onClick={() => navigate(`/app/receipts/invoice?need=${need.id}`, { state: { needLabel: need.item_name } })}>Receber por NF</Button>
+                      <Button onClick={() => navigate(`/app/receipts/new?need=${need.id}`, { state: { needLabel: need.item_name } })}>Entrada manual</Button>
                       <Button onClick={() => openDecision(need, "atendida", "Concluir sem nova entrada")}>Concluir</Button>
                     </>
                   )}

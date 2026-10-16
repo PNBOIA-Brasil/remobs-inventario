@@ -24,6 +24,8 @@ class ReceiptCreate(BaseModel):
     lines: list[ReceiptLineCreate] = Field(min_length=1)
     # Nota fiscal lida em /receipts/invoice/read: cabeçalho conferido pelo usuário.
     invoice_id: uuid.UUID | None = None
+    # Pedido de aquisição (demanda) que esta entrada atende; abatido com preferência.
+    need_id: uuid.UUID | None = None
     invoice_number: str | None = Field(default=None, max_length=60)
     invoice_series: str | None = Field(default=None, max_length=20)
     supplier_name: str | None = Field(default=None, max_length=240)
@@ -87,6 +89,8 @@ class ReceivedInvoiceSummary(BaseModel):
     notes: str | None
     received_by_username: str
     received_at: datetime
+    acquisition_need_id: uuid.UUID | None = None
+    acquisition_process_number: str | None = None
     lines: int
     units: int
     files: int

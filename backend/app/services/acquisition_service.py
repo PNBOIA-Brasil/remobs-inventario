@@ -138,8 +138,13 @@ async def update_need(session: AsyncSession, *, user: AuthUser, need_id: uuid.UU
     return need
 
 
-async def allocate_receipt(session: AsyncSession, *, item_id: uuid.UUID, quantity: int) -> list[AcquisitionNeed]:
-    """Abate a quantidade recebida das necessidades abertas do item. Completa → `atendida`."""
+async def allocate_receipt(
+    session: AsyncSession, *, item_id: uuid.UUID, quantity: int, prefer_need_id: uuid.UUID | None = None
+) -> list[AcquisitionNeed]:
+    """Abate a quantidade recebida das necessidades abertas do item. Completa → `atendida`.
+
+    `prefer_need_id` (o pedido escolhido pelo usuário na entrada) é abatido primeiro.
+    """
     needs = list(
         (
             await session.execute(
@@ -149,7 +154,7 @@ async def allocate_receipt(session: AsyncSession, *, item_id: uuid.UUID, quantit
             )
         ).scalars().all()
     )
-    needs.sort(key=lambda need: ALLOCATION_ORDER[need.status])
+    needs.sort(key=lambda need: (need.id != prefer_need_id, ALLOCATION_ORDER[need.status]))
     remaining = quantity
     touched: list[AcquisitionNeed] = []
     for need in needs:
