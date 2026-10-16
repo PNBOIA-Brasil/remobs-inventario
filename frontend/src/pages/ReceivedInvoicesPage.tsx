@@ -1,5 +1,6 @@
 import DownloadIcon from "@mui/icons-material/Download";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import PrintIcon from "@mui/icons-material/Print";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import SearchIcon from "@mui/icons-material/Search";
 import Accordion from "@mui/material/Accordion";
@@ -22,6 +23,7 @@ import { Link as RouterLink } from "react-router-dom";
 
 import LoadingState from "../components/LoadingState";
 import { RECEIPT_PERMISSIONS } from "../navigation";
+import { printReceiptTerm } from "../receiptTerm";
 import { inventoryService, saveBlob, type ReceivedInvoice, type ReceivedInvoiceDetail } from "../services/inventoryService";
 import { useAuth } from "../state/AuthContext";
 import { useSnackbar } from "../state/SnackbarContext";
@@ -219,22 +221,35 @@ export default function ReceivedInvoicesPage() {
                   <Typography fontWeight={700}>Itens recebidos</Typography>
                   {detail === "loading" && <LinearProgress aria-label="Carregando itens da nota" />}
                   {detail && detail !== "loading" && (
-                    <List disablePadding sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2 }}>
-                      {detail.received_items.map((item, position) => (
-                        <ListItemButton key={`${item.item_id}-${position}`} component={RouterLink} to={`/app/inventory/${item.item_id}`} divider={position < detail.received_items.length - 1}>
-                          <ListItemText
-                            primary={item.name}
-                            secondary={[item.patrimony_number, item.item_type === "permanent_component" ? "Permanente" : "Consumível"].filter(Boolean).join(" · ")}
-                          />
-                          <Typography fontWeight={600} sx={{ ml: 1, whiteSpace: "nowrap" }}>
-                            {item.quantity} {item.unit}
-                          </Typography>
-                        </ListItemButton>
-                      ))}
-                      {detail.received_items.length === 0 && (
-                        <Typography sx={{ p: 1.5 }} color="text.secondary">Nenhum item ligado a esta nota.</Typography>
-                      )}
-                    </List>
+                    <>
+                      <List disablePadding sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2 }}>
+                        {detail.received_items.map((item, position) => (
+                          <ListItemButton key={`${item.item_id}-${position}`} component={RouterLink} to={`/app/inventory/${item.item_id}`} divider={position < detail.received_items.length - 1}>
+                            <ListItemText
+                              primary={item.name}
+                              secondary={[item.patrimony_number, item.item_type === "permanent_component" ? "Permanente" : "Consumível"].filter(Boolean).join(" · ")}
+                            />
+                            <Typography fontWeight={600} sx={{ ml: 1, whiteSpace: "nowrap" }}>
+                              {item.quantity} {item.unit}
+                            </Typography>
+                          </ListItemButton>
+                        ))}
+                        {detail.received_items.length === 0 && (
+                          <Typography sx={{ p: 1.5 }} color="text.secondary">Nenhum item ligado a esta nota.</Typography>
+                        )}
+                      </List>
+                      <Box>
+                        <Button
+                          variant="outlined"
+                          startIcon={<PrintIcon />}
+                          onClick={() => {
+                            if (!printReceiptTerm(detail)) showError("Permita pop-ups deste site para imprimir o termo.");
+                          }}
+                        >
+                          Imprimir termo de recebimento
+                        </Button>
+                      </Box>
+                    </>
                   )}
                 </Stack>
               </AccordionDetails>
