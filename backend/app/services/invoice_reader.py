@@ -18,6 +18,7 @@ from app.core.config import settings
 from app.core.errors import AppError
 from app.models.audit_log import AuditLog
 from app.models.inventory import InventoryItem
+from app.schemas.inventory import ItemPhotoRead
 from app.schemas.receipt import InvoiceRead
 
 IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
@@ -36,6 +37,41 @@ na nota a vírgula é o separador decimal e o ponto o de milhar
 ("50,000" = 50; "1.234,50" = 1234.5); no JSON use ponto decimal e nenhum separador de milhar;
 "uncertain_fields" lista os campos do cabeçalho que ficaram ilegíveis ou duvidosos (use os nomes das chaves).
 Se não for uma nota fiscal, responda {"lines": []}."""
+
+
+ITEM_PROMPT = """Você vê a foto de um equipamento ou material de estoque (sensor, cabo, bateria, peça etc.).
+Leia etiquetas, plaquetas e marcações e responda SOMENTE com um objeto JSON, sem texto antes ou depois:
+{"name": str|null, "brand": str|null, "model": str|null, "category": str|null,
+ "unit": str|null, "serial_number": str|null, "description": str|null}
+"name" é o nome curto do item; "category" é a categoria geral (ex.: "Sensor", "Cabo", "Bateria");
+"unit" é a unidade (un, m, kg…) se houver, senão "un"; "serial_number" é o número de série se aparecer;
+"description" traz detalhes úteis visíveis. Use null quando não der para ler com confiança."""
+
+
+def read_item_photo(mime_type: str, content: bytes) -> ItemPhotoRead:
+    """Lê uma foto de item pelo modelo de visão e devolve os campos do cadastro, para o usuário conferir."""
+    pages = to_jpeg_pages(mime_type, content)
+    if not pages:
+        raise AppError("Envie uma foto do item.", code="empty_photo", status_code=400)
+    body = [{"image": {"format": "jpeg", "source": {"bytes": pages[0]}}}, {"text": ITEM_PROMPT}]
+    try:
+        response = _client().converse(
+            modelId=settings.invoice_ai_model_id,
+            messages=[{"role": "user", "content": body}],
+            inferenceConfig={"maxTokens": 1000, "temperature": 0},
+        )
+    except (BotoCoreError, ClientError) as exc:
+        raise AppError(
+            "O serviço de leitura de imagem está indisponível. Tente de novo ou preencha manualmente.",
+            code="item_ai_unavailable",
+            status_code=502,
+        ) from exc
+    text = "".join(block.get("text", "") for block in response["output"]["message"]["content"])
+    match = re.search(r"\{.*\}", text or "", re.DOTALL)
+    try:
+        return ItemPhotoRead.model_validate(json.loads(match.group(0) if match else ""))
+    except (json.JSONDecodeError, ValidationError) as exc:
+        raise AppError("Não foi possível ler a foto do item. Tente uma foto mais nítida.", code="item_photo_unreadable", status_code=422) from exc
 
 
 def _client():

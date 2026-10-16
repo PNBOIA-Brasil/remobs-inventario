@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import uuid
 from datetime import datetime, timezone
 
@@ -11,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_async_session
 from app.core.errors import AppError
-from app.core.permissions import require_permissions
+from app.core.permissions import require_any_permission, require_permissions
 from app.core.security import AuthUser
 from app.models.inventory import InventoryItem, StockBalance, StockMovement
 from app.schemas.file import EntityFileDeleteRequest, EntityFileListRead, EntityFileRead
@@ -23,8 +24,10 @@ from app.schemas.inventory import (
     InventoryItemUpdate,
     InventoryListRead,
     ItemHistoryRead,
+    ItemPhotoRead,
 )
 from app.services.audit_service import log_action
+from app.services.invoice_reader import read_item_photo
 from app.services.file_service import attach_upload, get_entity_file_or_404, list_entity_files, soft_delete_entity_file
 from app.services import file_storage
 from app.services.inventory_service import (
@@ -81,6 +84,18 @@ async def suggest_item_fields(
     """Sugestões rápidas de nome/marca/modelo/categoria/local para autocomplete no cadastro."""
     items = await suggest_item_field_values(session, field=field, q=q, limit=limit)
     return {"field": field, "q": q.strip(), "items": items}
+
+
+@router.post("/read-photo", response_model=ItemPhotoRead)
+async def read_item_from_photo(
+    file: UploadFile = File(...),
+    user: AuthUser = Depends(require_any_permission(["inventory:item:create", "inventory:item:update"])),
+) -> ItemPhotoRead:
+    """Lê os campos do item a partir de uma foto (modelo de visão), para preencher o cadastro."""
+    content = await file.read()
+    if not content:
+        raise AppError("Arquivo vazio não é permitido.", code="empty_file", status_code=400)
+    return await asyncio.to_thread(read_item_photo, file.content_type or "", content)
 
 
 @router.post("", response_model=InventoryItemRead, status_code=status.HTTP_201_CREATED)

@@ -194,6 +194,7 @@ export default function InventoryFormPage() {
   const isEdit = Boolean(id);
   const navigate = useNavigate();
   const { showSuccess, showError } = useSnackbar();
+  const [reading, setReading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(isEdit);
   const [loadError, setLoadError] = useState(false);
@@ -263,6 +264,29 @@ export default function InventoryFormPage() {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
+  async function readFromPhoto(file: File) {
+    setReading(true);
+    try {
+      const data = await inventoryService.readItemPhoto(file);
+      setForm((current) => ({
+        ...current,
+        name: data.name || current.name,
+        brand: data.brand || current.brand,
+        model: data.model || current.model,
+        category_name: data.category || current.category_name,
+        unit: data.unit || current.unit,
+        serial_number: data.serial_number || current.serial_number,
+        description: data.description || current.description,
+      }));
+      showSuccess("Dados lidos da foto. Confira antes de salvar.");
+    } catch (error) {
+      const message = axios.isAxiosError(error) ? error.response?.data?.error?.message : undefined;
+      showError(message || "Não foi possível ler a foto do item.");
+    } finally {
+      setReading(false);
+    }
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setSubmitting(true);
@@ -328,6 +352,29 @@ export default function InventoryFormPage() {
       <CardContent>
         <Stack component="form" spacing={2.5} onSubmit={handleSubmit}>
           <Typography variant="h5">{isEdit ? "Editar item" : "Novo item"}</Typography>
+
+          {!isEdit && (
+            <Button
+              component="label"
+              variant="outlined"
+              disabled={reading}
+              startIcon={reading ? <CircularProgress size={18} /> : undefined}
+              sx={{ alignSelf: "flex-start" }}
+            >
+              {reading ? "Lendo foto..." : "Preencher pela foto do item"}
+              <input
+                hidden
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                capture="environment"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (file) readFromPhoto(file);
+                }}
+              />
+            </Button>
+          )}
 
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, md: 6 }}>

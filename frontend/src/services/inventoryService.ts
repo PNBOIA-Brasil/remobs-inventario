@@ -140,6 +140,16 @@ export interface InvoiceReadResult {
   already_received: ReceivedInvoice | null;
 }
 
+export interface ItemPhotoRead {
+  name: string | null;
+  brand: string | null;
+  model: string | null;
+  category: string | null;
+  unit: string | null;
+  serial_number: string | null;
+  description: string | null;
+}
+
 export interface ChecklistPayload {
   title?: string;
   template_name?: string;
@@ -347,6 +357,14 @@ export const inventoryService = {
     files.forEach((file) => formData.append("files", file));
     // O modelo de visão leva de 10 a 40 s por nota.
     const response = await inventoryApi.post<InvoiceReadResult>("/inventory/receipts/invoice/read", formData, { timeout: 120000 });
+    return response.data;
+  },
+
+  async readItemPhoto(file: File): Promise<ItemPhotoRead> {
+    const formData = new FormData();
+    formData.append("file", file);
+    // O modelo de visão leva alguns segundos por foto.
+    const response = await inventoryApi.post<ItemPhotoRead>("/inventory/items/read-photo", formData, { timeout: 120000 });
     return response.data;
   },
 

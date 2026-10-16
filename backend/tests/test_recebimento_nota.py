@@ -11,8 +11,10 @@ from PIL import Image
 from app.core.errors import AppError
 from app.routers import receipts
 from app.schemas.receipt import InvoiceRead
+from app.routers import inventory as inventory_router
+from app.schemas.inventory import ItemPhotoRead
 from app.services.invoice_reader import check_quantities, parse_model_json, similarity, to_jpeg_pages
-from test_auth_inventory_contract import client, database_schema  # noqa: F401
+from test_auth_inventory_contract import auth_headers, client, database_schema  # noqa: F401
 from test_fluxos_operacionais import PAIOL, REQUESTER, _item
 
 
@@ -187,3 +189,29 @@ def test_lista_notas_recebidas_com_detalhe_e_aviso_de_repetida(client: TestClien
     monkeypatch.setattr(receipts, "read_invoice", lambda files: InvoiceRead(number="4521", supplier_cnpj=cnpj, lines=[]))
     repeated = client.post("/inventory/receipts/invoice/read", headers=PAIOL, files=upload).json()
     assert repeated["already_received"]["id"] == row["id"]
+
+
+def test_le_foto_do_item_preenche_campos(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        inventory_router,
+        "read_item_photo",
+        lambda mime, content: ItemPhotoRead(
+            name="Sensor ADCP", brand="Nortek", model="Signature", category="Sensor", unit="un", serial_number="SN-1", description="Perfilador acústico"
+        ),
+    )
+    response = client.post(
+        "/inventory/items/read-photo",
+        headers=auth_headers(["inventory:item:create"]),
+        files={"file": ("item.png", _png(), "image/png")},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["name"] == "Sensor ADCP"
+    assert body["brand"] == "Nortek"
+
+    forbidden = client.post(
+        "/inventory/items/read-photo",
+        headers=auth_headers(["platform:read"]),
+        files={"file": ("item.png", _png(), "image/png")},
+    )
+    assert forbidden.status_code == 403

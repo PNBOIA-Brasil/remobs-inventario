@@ -11,6 +11,9 @@
 ### Adicionado — nome e número de série separados na leitura da nota fiscal
 - A leitura da nota passa a devolver, por linha, o nome limpo do produto (`name`) e o número de série/lote (`serial_number`), além da descrição crua. No cadastro rápido durante a conferência, o nome vem limpo e há o campo "Número de série" já preenchido quando a leitura o separa; ambos são editáveis e o `serial_number` é gravado no item. Backend: prompt do leitor de visão e `InvoiceLine` com `name`/`serial_number` (opcionais, sem migração). Plano: `planos/2026-10-16-nf-nome-numero-serie.md`.
 
+### Adicionado — ler a foto do item para preencher o cadastro
+- O cadastro de item novo ganha o botão "Preencher pela foto do item": a foto é lida pelo modelo de visão (Amazon Bedrock) e preenche nome, marca, modelo, categoria, unidade, número de série e descrição, para o usuário conferir e salvar. Backend: `POST /inventory/items/read-photo` (permissão de criar ou editar item) reaproveitando o leitor de visão. Sem migração nem nova dependência. Plano: `planos/2026-10-16-ler-foto-item-visao.md`.
+
 ### Adicionado — Termo de Cautela para empréstimo/Navio
 - O pedido de retirada com finalidade empréstimo ou plataforma (aprovado ou entregue) ganha o botão "Imprimir cautela", que gera um Termo de Cautela A4 com o código do pedido, solicitante, finalidade, destino (plataforma/Navio), devolução prevista, itens em cautela, declaração e campos de assinatura. Somente frontend, impressão em janela própria; o Navio é cadastrado como plataforma de destino. Plano: `planos/2026-10-16-termo-cautela-navio.md`.
 

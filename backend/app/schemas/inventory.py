@@ -99,6 +99,18 @@ class InventoryFieldSuggestionsRead(BaseModel):
     items: list[str]
 
 
+class ItemPhotoRead(BaseModel):
+    """Campos do item lidos de uma foto pelo modelo de visão; tudo pode vir nulo e é conferido."""
+
+    name: str | None = None
+    brand: str | None = None
+    model: str | None = None
+    category: str | None = None
+    unit: str | None = None
+    serial_number: str | None = None
+    description: str | None = None
+
+
 class InventoryDeleteRequest(BaseModel):
     reason: str = Field(min_length=3)
 
