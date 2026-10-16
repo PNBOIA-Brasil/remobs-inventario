@@ -342,14 +342,15 @@ def test_paiol_comum_continua_sem_decidir_o_proprio_pedido(client: TestClient) -
 
 
 def test_patrimonio_gerado_unico_e_imutavel(client: TestClient) -> None:
-    first_id, _ = _item(client, quantity=1)
-    second_id, _ = _item(client, quantity=1)
+    # Patrimônio só vale para permanentes; consumível não recebe número (ver test_auth_inventory_contract).
+    first_id, _ = _item(client, quantity=1, item_type="permanent_component")
+    second_id, _ = _item(client, quantity=1, item_type="permanent_component")
     first = client.get(f"/inventory/items/{first_id}", headers=ADMIN).json()["patrimony_number"]
     second = client.get(f"/inventory/items/{second_id}", headers=ADMIN).json()["patrimony_number"]
     assert first.startswith("REM-") and len(first) == 10
     assert int(second[4:]) == int(first[4:]) + 1
 
-    base = {"item_type": "consumable", "name": "Plaqueta", "category_name": "Fluxo", "location_name": "Paiol fluxo", "unit": "un"}
+    base = {"item_type": "permanent_component", "name": "Plaqueta", "category_name": "Fluxo", "location_name": "Paiol fluxo", "unit": "un"}
     assert client.post("/inventory/items", headers=ADMIN, json={**base, "patrimony_number": "rem-999999"}).status_code == 400
     plaqueta = f"PAT-{uuid.uuid4().hex[:8]}"
     assert client.post("/inventory/items", headers=ADMIN, json={**base, "patrimony_number": f" {plaqueta} "}).json()["patrimony_number"] == plaqueta
