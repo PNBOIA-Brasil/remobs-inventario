@@ -1,3 +1,4 @@
+import PrintIcon from "@mui/icons-material/Print";
 import Alert from "@mui/material/Alert";
 import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
@@ -13,6 +14,7 @@ import { APPROVE_PERMISSIONS } from "../navigation";
 import ReasonDialog from "../components/ReasonDialog";
 import StatusChip from "../components/StatusChip";
 import WithdrawalQrCard from "../components/WithdrawalQrCard";
+import { printCustodyTerm } from "../custodyTerm";
 import { inventoryService } from "../services/inventoryService";
 import { useAuth } from "../state/AuthContext";
 import { useSnackbar } from "../state/SnackbarContext";
@@ -143,6 +145,18 @@ export default function WithdrawalDetailPage() {
             )}
             {order.status === "approved" && (hasPermission("inventory:withdrawal:deliver") || isInventoryAdmin) && canDecide && (
               <Button variant="contained" onClick={() => setDecision({ kind: "deliver" })}>Entregar</Button>
+            )}
+            {order.purpose !== "consumo" && (order.status === "approved" || order.status === "delivered") && (
+              <Button
+                variant="outlined"
+                startIcon={<PrintIcon />}
+                sx={{ alignSelf: "flex-start" }}
+                onClick={() => {
+                  if (!printCustodyTerm(order)) showError("Permita pop-ups deste site para imprimir a cautela.");
+                }}
+              >
+                Imprimir cautela
+              </Button>
             )}
           </Stack>
         </CardContent>

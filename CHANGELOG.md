@@ -11,6 +11,9 @@
 ### Adicionado — nome e número de série separados na leitura da nota fiscal
 - A leitura da nota passa a devolver, por linha, o nome limpo do produto (`name`) e o número de série/lote (`serial_number`), além da descrição crua. No cadastro rápido durante a conferência, o nome vem limpo e há o campo "Número de série" já preenchido quando a leitura o separa; ambos são editáveis e o `serial_number` é gravado no item. Backend: prompt do leitor de visão e `InvoiceLine` com `name`/`serial_number` (opcionais, sem migração). Plano: `planos/2026-10-16-nf-nome-numero-serie.md`.
 
+### Adicionado — Termo de Cautela para empréstimo/Navio
+- O pedido de retirada com finalidade empréstimo ou plataforma (aprovado ou entregue) ganha o botão "Imprimir cautela", que gera um Termo de Cautela A4 com o código do pedido, solicitante, finalidade, destino (plataforma/Navio), devolução prevista, itens em cautela, declaração e campos de assinatura. Somente frontend, impressão em janela própria; o Navio é cadastrado como plataforma de destino. Plano: `planos/2026-10-16-termo-cautela-navio.md`.
+
 ### Adicionado — Termo de Recebimento Provisório
 - O detalhe de uma nota fiscal recebida ganha o botão "Imprimir termo de recebimento", que gera um documento A4 imprimível com o cabeçalho da nota, os itens recebidos (patrimônio, tipo, quantidade), total, observações e campos de assinatura. Somente frontend, impressão em janela própria (`window.print()`), sem nova dependência. Plano: `planos/2026-10-16-termo-recebimento-provisorio.md`.
 
