@@ -22,6 +22,7 @@ import { useNavigate } from "react-router-dom";
 
 import LoadingState from "../components/LoadingState";
 import StatusChip from "../components/StatusChip";
+import { groupIdenticalItems } from "../inventoryGrouping";
 import { itemQrUrl, printLabels } from "../labelPrint";
 import { inventoryService } from "../services/inventoryService";
 import { useAuth } from "../state/AuthContext";
@@ -37,6 +38,7 @@ export default function InventoryListPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("todos");
+  const [grouped, setGrouped] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
@@ -68,6 +70,8 @@ export default function InventoryListPage() {
       return matchesQuery && matchesFilter;
     });
   }, [filter, items, query]);
+
+  const groups = useMemo(() => groupIdenticalItems(filtered), [filtered]);
 
   const filters: Array<[Filter, string]> = [
     ["todos", "Todos"],
@@ -143,6 +147,15 @@ export default function InventoryListPage() {
         ))}
       </Stack>
       {items.length > 0 && (
+        <Chip
+          label={grouped ? "Agrupado: iguais somados" : "Agrupar iguais"}
+          color={grouped ? "primary" : "default"}
+          variant={grouped ? "filled" : "outlined"}
+          onClick={() => setGrouped((value) => !value)}
+          sx={{ alignSelf: "flex-start" }}
+        />
+      )}
+      {items.length > 0 && !grouped && (
         <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
           <Button onClick={toggleVisible} disabled={filtered.length === 0}>
             {allVisibleSelected ? "Desmarcar visíveis" : "Selecionar visíveis"}
@@ -156,7 +169,40 @@ export default function InventoryListPage() {
       {error && <Alert severity="error">Erro ao carregar inventário.</Alert>}
       {!loading && filtered.length === 0 && !error && <Alert severity="info">Nenhum item encontrado.</Alert>}
       <Stack spacing={1.5}>
-        {filtered.map((item) => {
+        {grouped &&
+          groups.map((group) => (
+            <Card key={group.key}>
+              <CardActionArea
+                onClick={() => {
+                  setQuery(group.sample.name);
+                  setGrouped(false);
+                }}
+              >
+                <CardContent>
+                  <Stack spacing={1}>
+                    <Stack direction="row" justifyContent="space-between" gap={1}>
+                      <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                        <Typography fontWeight={700}>{group.sample.name}</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {[group.sample.brand, group.sample.model].filter(Boolean).join(" • ") ||
+                            (group.sample.item_type === "consumable" ? "Consumível" : "Permanente")}
+                        </Typography>
+                      </Box>
+                      <Chip color="primary" label={`${group.units} ${group.units === 1 ? "item" : "itens"}`} />
+                    </Stack>
+                    <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
+                      <Typography variant="body2">
+                        Saldo total: {group.stockTotal} {group.sample.unit}
+                      </Typography>
+                      {group.critical && <Chip size="small" color="warning" label="Abaixo do mínimo" />}
+                    </Stack>
+                  </Stack>
+                </CardContent>
+              </CardActionArea>
+            </Card>
+          ))}
+        {!grouped &&
+          filtered.map((item) => {
           const isCritical = item.minimum_stock_national > 0 && item.stock_total < item.minimum_stock_national;
           return (
             <Card key={item.id}>
