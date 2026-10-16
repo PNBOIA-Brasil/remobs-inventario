@@ -96,11 +96,12 @@ function apiMessage(error: unknown, fallback: string): string {
   return (axios.isAxiosError(error) ? error.response?.data?.error?.message : undefined) ?? fallback;
 }
 
-function initialDecision(line: InvoiceLine, suggestions: InvoiceReadResult["suggestions"][number]): Decision {
+export function initialDecision(line: InvoiceLine, suggestions: InvoiceReadResult["suggestions"][number], canCreate: boolean): Decision {
   const best = suggestions[0];
   const sure = best && (best.match === "supplier_code" || best.score >= 0.6);
   return {
-    choice: sure ? best.item_id : null,
+    // Sugestão confiável vence; senão, cadastrar item novo é o padrão (quem pode criar).
+    choice: sure ? best.item_id : canCreate ? "new" : null,
     searchItem: null,
     newName: sentence(line.description),
     newType: "consumable",
@@ -197,7 +198,7 @@ export default function InvoiceReceiptPage() {
         issue_date: result.issue_date ?? "",
         total_value: result.total_value == null ? "" : String(result.total_value),
       });
-      setDecisions(result.lines.map((line, position) => initialDecision(line, result.suggestions[position] ?? [])));
+      setDecisions(result.lines.map((line, position) => initialDecision(line, result.suggestions[position] ?? [], canCreate)));
       setIndex(0);
       setStage("header");
     } catch (error) {
