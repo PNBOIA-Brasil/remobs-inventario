@@ -29,6 +29,25 @@ class PlatformDeleteRequest(BaseModel):
     reason: str = Field(min_length=3)
 
 
+class PnboiaPreviewItem(PlatformCreate):
+    external_id: int | None = None
+    exists: bool = False
+
+
+class PnboiaPreviewRead(BaseModel):
+    items: list[PnboiaPreviewItem]
+    errors: list[str] = Field(default_factory=list)
+
+
+class PnboiaSyncRequest(BaseModel):
+    platforms: list[PlatformCreate] = Field(min_length=1)
+
+
+class PnboiaSyncResult(BaseModel):
+    created: int
+    updated: int
+
+
 class PlatformRead(BaseModel):
     id: uuid.UUID
     name: str

@@ -178,6 +178,22 @@ export interface PlatformCreatePayload {
   description?: string;
 }
 
+export interface PnboiaPreviewItem {
+  name: string;
+  platform_type: string;
+  manufacturer: string | null;
+  model: string | null;
+  operational_status: string;
+  description: string | null;
+  external_id: number | null;
+  exists: boolean;
+}
+
+export interface PnboiaPreviewResult {
+  items: PnboiaPreviewItem[];
+  errors: string[];
+}
+
 export interface PlatformUpdatePayload {
   name?: string;
   platform_type?: string;
@@ -520,6 +536,17 @@ export const inventoryService = {
     const response = await inventoryApi.delete<{ status: string }>(`/platforms/${id}`, {
       data: { reason },
     });
+    return response.data;
+  },
+
+  /** Consulta a API PNBOIA e devolve as plataformas para o usuário conferir. Pode levar alguns segundos. */
+  async previewPnboiaPlatforms(): Promise<PnboiaPreviewResult> {
+    const response = await inventoryApi.get<PnboiaPreviewResult>("/platforms/pnboia/preview", { timeout: 120000 });
+    return response.data;
+  },
+
+  async syncPnboiaPlatforms(platforms: Array<Omit<PnboiaPreviewItem, "external_id" | "exists">>): Promise<{ created: number; updated: number }> {
+    const response = await inventoryApi.post<{ created: number; updated: number }>("/platforms/pnboia/sync", { platforms });
     return response.data;
   },
 

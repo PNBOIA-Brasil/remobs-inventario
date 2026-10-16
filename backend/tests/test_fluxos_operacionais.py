@@ -419,3 +419,39 @@ def test_recebimento_com_data_informada_entra_no_relatorio_do_mes(client: TestCl
         "/inventory/receipts/invoices", headers=ADMIN, params={"date_from": "2026-04-01", "date_to": "2026-04-30"}
     ).json()["items"]
     assert all(entry["id"] != invoice_id for entry in april)
+
+
+def test_sincroniza_plataformas_pnboia(client: TestClient, monkeypatch) -> None:
+    from app.routers import platforms as platforms_router
+
+    payloads = [
+        {
+            "name": "Boia PNBOIA Teste 99",
+            "platform_type": "boia",
+            "manufacturer": "Axys",
+            "model": "3M",
+            "operational_status": "em_operacao",
+            "description": "Boia de teste da API.",
+            "external_id": 99,
+            "metadata_error": None,
+        }
+    ]
+    monkeypatch.setattr(platforms_router, "fetch_platform_payloads", lambda include_metadata=True: payloads)
+
+    preview = client.get("/platforms/pnboia/preview", headers=ADMIN)
+    assert preview.status_code == 200, preview.text
+    item = preview.json()["items"][0]
+    assert item["name"] == "Boia PNBOIA Teste 99"
+    assert item["exists"] is False
+
+    confirmed = {"name": "Boia PNBOIA Teste 99", "platform_type": "boia", "manufacturer": "Axys", "model": "3M", "operational_status": "em_operacao", "description": "Boia de teste da API."}
+    sync = client.post("/platforms/pnboia/sync", headers=ADMIN, json={"platforms": [confirmed]})
+    assert sync.status_code == 200, sync.text
+    assert sync.json() == {"created": 1, "updated": 0}
+
+    listed = client.get("/platforms", headers=ADMIN, params={"active_only": True}).json()["items"]
+    assert any(platform["name"] == "Boia PNBOIA Teste 99" for platform in listed)
+
+    assert client.get("/platforms/pnboia/preview", headers=ADMIN).json()["items"][0]["exists"] is True
+    sync2 = client.post("/platforms/pnboia/sync", headers=ADMIN, json={"platforms": [confirmed]})
+    assert sync2.json() == {"created": 0, "updated": 1}

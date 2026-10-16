@@ -11,6 +11,9 @@
 ### Adicionado — nome e número de série separados na leitura da nota fiscal
 - A leitura da nota passa a devolver, por linha, o nome limpo do produto (`name`) e o número de série/lote (`serial_number`), além da descrição crua. No cadastro rápido durante a conferência, o nome vem limpo e há o campo "Número de série" já preenchido quando a leitura o separa; ambos são editáveis e o `serial_number` é gravado no item. Backend: prompt do leitor de visão e `InvoiceLine` com `name`/`serial_number` (opcionais, sem migração). Plano: `planos/2026-10-16-nf-nome-numero-serie.md`.
 
+### Adicionado — sincronizar plataformas com a API PNBOIA
+- A tela de Plataformas ganha o botão "Sincronizar PNBOIA": consulta a API de boias, lista as plataformas retornadas marcando cada uma como "nova" ou "atualiza" (casada por nome) e grava só as que o usuário confirmar. Backend: `GET /platforms/pnboia/preview` (busca sem gravar) e `POST /platforms/pnboia/sync` (grava as confirmadas), reaproveitando `fetch_platform_payloads`; permissão `platform:create`/`platform:update`. Nível de plataforma; o enriquecimento profundo (casco/sistemas/sensores) segue no script CLI. Plano: `planos/2026-10-16-sincronizar-plataformas-pnboia.md`.
+
 ### Adicionado — ler a foto do item para preencher o cadastro
 - O cadastro de item novo ganha o botão "Preencher pela foto do item": a foto é lida pelo modelo de visão (Amazon Bedrock) e preenche nome, marca, modelo, categoria, unidade, número de série e descrição, para o usuário conferir e salvar. Backend: `POST /inventory/items/read-photo` (permissão de criar ou editar item) reaproveitando o leitor de visão. Sem migração nem nova dependência. Plano: `planos/2026-10-16-ler-foto-item-visao.md`.
 

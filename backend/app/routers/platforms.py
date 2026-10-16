@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_async_session
@@ -20,9 +21,14 @@ from app.schemas.platform import (
     PlatformListRead,
     PlatformRead,
     PlatformUpdate,
+    PnboiaPreviewRead,
+    PnboiaSyncRequest,
+    PnboiaSyncResult,
 )
 from app.services.audit_service import log_action
-from app.services.pnboia_platforms import ACTIVE_OPERATIONAL_STATUSES
+from app.services.pnboia_platforms import ACTIVE_OPERATIONAL_STATUSES, fetch_platform_payloads
+
+PNBOIA_MANAGE = ["platform:create", "platform:update"]
 
 router = APIRouter(prefix="/platforms", tags=["platforms"])
 
@@ -64,6 +70,72 @@ async def create_platform(
     await session.commit()
     await session.refresh(platform)
     return platform
+
+
+@router.get("/pnboia/preview", response_model=PnboiaPreviewRead)
+async def preview_pnboia_platforms(
+    user: AuthUser = Depends(require_any_permission(PNBOIA_MANAGE)),
+    session: AsyncSession = Depends(get_async_session),
+) -> dict:
+    """Consulta a API de boias PNBOIA e devolve as plataformas para o usuário conferir antes de gravar."""
+    try:
+        payloads = await asyncio.to_thread(fetch_platform_payloads, include_metadata=False)
+    except Exception as exc:  # noqa: BLE001 - a API externa pode falhar de várias formas
+        raise AppError("Não foi possível consultar a API PNBOIA agora.", code="pnboia_unavailable", status_code=502) from exc
+    existing = {
+        name.lower()
+        for (name,) in await session.execute(select(Platform.name).where(Platform.deleted_at.is_(None)))
+    }
+    items = [
+        {
+            "name": payload["name"],
+            "platform_type": payload["platform_type"],
+            "manufacturer": payload.get("manufacturer"),
+            "model": payload.get("model"),
+            "operational_status": payload["operational_status"],
+            "description": payload.get("description"),
+            "external_id": payload.get("external_id"),
+            "exists": payload["name"].lower() in existing,
+        }
+        for payload in payloads
+    ]
+    errors = [f"Boia {p['external_id']}: {p['metadata_error']}" for p in payloads if p.get("metadata_error")]
+    return {"items": items, "errors": errors}
+
+
+@router.post("/pnboia/sync", response_model=PnboiaSyncResult)
+async def sync_pnboia_platforms(
+    payload: PnboiaSyncRequest,
+    user: AuthUser = Depends(require_any_permission(PNBOIA_MANAGE)),
+    session: AsyncSession = Depends(get_async_session),
+) -> dict:
+    """Grava as plataformas confirmadas pelo usuário: cria as novas e atualiza as existentes (casadas por nome)."""
+    created = updated = 0
+    for item in payload.platforms:
+        existing = await session.scalar(
+            select(Platform).where(func.lower(Platform.name) == item.name.lower(), Platform.deleted_at.is_(None))
+        )
+        if existing:
+            for field, value in item.model_dump().items():
+                setattr(existing, field, value)
+            target, action, updated = existing, "platform_updated", updated + 1
+        else:
+            target = Platform(**item.model_dump())
+            session.add(target)
+            action, created = "platform_created", created + 1
+        await session.flush()
+        await log_action(
+            session,
+            actor=user,
+            action=action,
+            entity_type="platform",
+            entity_id=str(target.id),
+            entity_label_snapshot=target.name,
+            after_data=item.model_dump(),
+            reason="Sincronização com a API de boias PNBOIA.",
+        )
+    await session.commit()
+    return {"created": created, "updated": updated}
 
 
 @router.get("/{platform_id}", response_model=PlatformDetailRead)
