@@ -295,6 +295,41 @@ def test_creates_inventory_item_with_stock_and_audit_log(client: TestClient) -> 
     assert "inventory_item_created" in actions
 
 
+def test_consumable_has_no_patrimony_but_permanent_does(client: TestClient) -> None:
+    """Consumível não recebe número patrimonial; permanente recebe REM-."""
+    headers = auth_headers(["inventory:item:create", "inventory:item:read"])
+
+    consumable = client.post(
+        "/inventory/items",
+        headers=headers,
+        json={
+            "item_type": "consumable",
+            "name": f"Fita isolante {uuid.uuid4()}",
+            "category_name": "Consumíveis",
+            "location_name": "Estoque",
+            "unit": "un",
+            "reason": "Consumível não usa patrimônio.",
+        },
+    )
+    assert consumable.status_code == 201
+    assert consumable.json()["patrimony_number"] is None
+
+    permanent = client.post(
+        "/inventory/items",
+        headers=headers,
+        json={
+            "item_type": "permanent_component",
+            "name": f"Sensor {uuid.uuid4()}",
+            "category_name": "Sensores",
+            "location_name": "Estoque",
+            "unit": "un",
+            "reason": "Permanente usa patrimônio.",
+        },
+    )
+    assert permanent.status_code == 201
+    assert (permanent.json()["patrimony_number"] or "").startswith("REM-")
+
+
 def test_creates_item_with_zero_quantity_still_has_balance_row(client: TestClient) -> None:
     headers = auth_headers(["inventory:item:create", "inventory:item:read"])
     response = client.post(

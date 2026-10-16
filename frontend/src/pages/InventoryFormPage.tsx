@@ -308,7 +308,7 @@ export default function InventoryFormPage() {
           ideal_stock: Number(form.ideal_stock),
           reason: form.reason,
         });
-        showSuccess(`Item cadastrado. Patrimônio ${item.patrimony_number}.`);
+        showSuccess(item.patrimony_number ? `Item cadastrado. Patrimônio ${item.patrimony_number}.` : "Item cadastrado.");
         navigate(`/app/inventory/${item.id}`);
       }
     } catch (error) {
@@ -370,16 +370,18 @@ export default function InventoryFormPage() {
             <Grid size={{ xs: 12, md: 6 }}>
               <TextField fullWidth label="Número de série" value={form.serial_number} onChange={(event) => update("serial_number", event.target.value)} />
             </Grid>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <TextField
-                fullWidth
-                label={isEdit ? "Número patrimonial" : "Patrimônio (plaqueta existente)"}
-                value={form.patrimony_number}
-                onChange={(event) => update("patrimony_number", event.target.value)}
-                disabled={isEdit}
-                helperText={isEdit ? "Não muda: é o QR Code do item." : "Deixe vazio para gerar automaticamente (REM-000001)."}
-              />
-            </Grid>
+            {form.item_type === "permanent_component" && (
+              <Grid size={{ xs: 12, md: 6 }}>
+                <TextField
+                  fullWidth
+                  label={isEdit ? "Número patrimonial" : "Patrimônio (plaqueta existente)"}
+                  value={form.patrimony_number}
+                  onChange={(event) => update("patrimony_number", event.target.value)}
+                  disabled={isEdit}
+                  helperText={isEdit ? "Não muda: é o QR Code do item." : "Deixe vazio para gerar automaticamente (REM-000001)."}
+                />
+              </Grid>
+            )}
             <Grid size={{ xs: 12, md: 6 }}>
               <TextField fullWidth label="Nota fiscal" value={form.invoice_number} onChange={(event) => update("invoice_number", event.target.value)} />
             </Grid>

@@ -98,7 +98,12 @@ async def create_item(
         brand=payload.brand,
         model=payload.model,
         serial_number=payload.serial_number,
-        patrimony_number=await resolve_patrimony_number(session, payload.patrimony_number),
+        # Consumível não usa número patrimonial; permanente gera/valida o REM-.
+        patrimony_number=(
+            None
+            if payload.item_type == "consumable"
+            else await resolve_patrimony_number(session, payload.patrimony_number)
+        ),
         invoice_number=payload.invoice_number,
         description=payload.description,
         condition_status=payload.condition_status,

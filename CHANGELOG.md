@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [2026-10-16]
+
+### Alterado — consumível não exige número patrimonial
+- O cadastro de item (`POST /inventory/items`) deixa de gerar número patrimonial para itens do tipo `consumable`; o `REM-` continua sendo gerado/validado apenas para `permanent_component`. O formulário de item esconde o campo "Patrimônio" quando o tipo é consumível. Banco e listagem já aceitavam patrimônio nulo. Consumíveis já existentes mantêm o número atual. Plano: `planos/2026-10-16-consumivel-sem-patrimonio.md`.
+
 ## [2026-10-13]
 
 ### Alterado — paiol cadastra item novo no recebimento por nota fiscal
