@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [2026-10-17]
+
+### Publicado — entregas de 2026-10-16
+- Produção: migração `0010_invoice_acquisition_need` aplicada, backend na task definition `remobs-inventario-backend:22` (imagem `prod-2026-10-17-recebimento-plataformas`, cópia da `:21` só com a imagem trocada), rollout `COMPLETED`, `/healthz` 200 e rotas novas no OpenAPI. Frontend no Amplify job `50` `SUCCEED`, bundle `index-C3Ms5CC4.js`, cache PWA `v26`.
+- Sem permissão nova no `remobs-users` nem IAM novo (a leitura de foto do item usa a mesma role de visão da nota fiscal).
+- Rollback: ECS de volta para `remobs-inventario-backend:21` e republicação do job 49 no Amplify; a coluna `acquisition_need_id` pode ficar.
+
 ## [2026-10-16]
 
 ### Corrigido — revisão das entregas do dia
