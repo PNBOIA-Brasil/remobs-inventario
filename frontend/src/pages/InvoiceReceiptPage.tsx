@@ -16,6 +16,10 @@ import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Chip from "@mui/material/Chip";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import IconButton from "@mui/material/IconButton";
 import LinearProgress from "@mui/material/LinearProgress";
@@ -117,6 +121,11 @@ export function initialDecision(line: InvoiceLine, suggestions: InvoiceReadResul
   };
 }
 
+/** Linha lançada à mão na conferência (a leitura não achou o item na nota). */
+export function manualLine(name: string, quantity: number, unit: string): InvoiceLine {
+  return { supplier_code: null, description: name.trim(), name: name.trim(), serial_number: null, unit: unit.trim() || "un", quantity, unit_value: null, total_value: null, ncm: null };
+}
+
 /** Botão que abre o seletor de arquivo (ou a câmera, com `capture`). */
 function FileButton({ label, icon, accept, capture, multiple, variant, onFiles }: {
   label: string;
@@ -157,6 +166,7 @@ export default function InvoiceReceiptPage() {
   const [notes, setNotes] = useState("");
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState<DoneSummary | null>(null);
+  const [extra, setExtra] = useState<{ name: string; quantity: string; unit: string } | null>(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const routerLocation = useLocation();
@@ -212,6 +222,23 @@ export default function InvoiceReceiptPage() {
     } catch (error) {
       setReadError(apiMessage(error, "Não foi possível ler a nota. Tente de novo ou lance manualmente."));
       setStage("files");
+    }
+  }
+
+  const extraValid = Boolean(extra?.name.trim() && extra.unit.trim() && Number(extra.quantity) > 0 && Number.isInteger(Number(extra.quantity)));
+
+  function addLine() {
+    if (!invoice || !extra || !extraValid) return;
+    const line = manualLine(extra.name, Number(extra.quantity), extra.unit);
+    const position = invoice.lines.length;
+    setInvoice({ ...invoice, lines: [...invoice.lines, line], suggestions: [...invoice.suggestions, []] });
+    // Nome como digitado (o da leitura vem em maiúsculas e é normalizado).
+    setDecisions((current) => [...current, { ...initialDecision(line, [], canCreate), newName: line.description }]);
+    setExtra(null);
+    // Na revisão, abre o item para conferir; nos dados, ele entra na fila da conferência.
+    if (stage === "review") {
+      setIndex(position);
+      setStage("items");
     }
   }
 
@@ -532,10 +559,13 @@ export default function InvoiceReceiptPage() {
                       <b>{invoice.lines.length} ite{invoice.lines.length === 1 ? "m encontrado" : "ns encontrados"}.</b> Na próxima etapa você confirma cada um e pode tirar foto.
                     </Alert>
                   ) : (
-                    <Alert severity="warning">Nenhum item foi encontrado na nota. Envie uma foto mais nítida ou lance manualmente.</Alert>
+                    <Alert severity="warning">Nenhum item foi encontrado na nota. Envie uma foto mais nítida ou adicione os itens abaixo.</Alert>
                   )}
                   <Button variant="contained" size="large" disabled={!locationId || invoice.lines.length === 0} onClick={() => setStage("items")}>
                     Começar conferência ({invoice.lines.length} {invoice.lines.length === 1 ? "item" : "itens"})
+                  </Button>
+                  <Button startIcon={<AddIcon />} onClick={() => setExtra({ name: "", quantity: "1", unit: "un" })}>
+                    Adicionar item que não foi lido
                   </Button>
                   <Button onClick={restart}>Trocar arquivo</Button>
                 </Stack>
@@ -775,6 +805,9 @@ export default function InvoiceReceiptPage() {
                   );
                 })}
               </List>
+              <Button startIcon={<AddIcon />} onClick={() => setExtra({ name: "", quantity: "1", unit: "un" })} sx={{ alignSelf: "flex-start" }}>
+                Adicionar item que não foi lido
+              </Button>
               <TextField label="Observações" value={notes} onChange={(e) => setNotes(e.target.value)} multiline minRows={2} placeholder="Ex.: 2 manilhas faltando, fornecedor avisado" />
               {pending >= 0 && <Alert severity="warning">Confirme o item {pending + 1} antes de registrar.</Alert>}
               {receivedCount === 0 && <Alert severity="warning">Nenhum item foi recebido; não há entrada para registrar.</Alert>}
@@ -828,6 +861,26 @@ export default function InvoiceReceiptPage() {
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={Boolean(extra)} onClose={() => setExtra(null)} fullWidth>
+        <DialogTitle>Adicionar item à nota</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Typography variant="body2" color="text.secondary">Para material que está na nota mas a leitura não encontrou. Em seguida você confere o item como os outros.</Typography>
+            <TextField label="Nome do material" value={extra?.name ?? ""} onChange={(e) => extra && setExtra({ ...extra, name: e.target.value })} required autoFocus />
+            <Stack direction="row" spacing={2}>
+              <TextField label="Quantidade na nota" type="number" value={extra?.quantity ?? ""} onChange={(e) => extra && setExtra({ ...extra, quantity: e.target.value })} required fullWidth slotProps={{ htmlInput: { min: 1, step: 1 } }} />
+              <TextField label="Unidade" value={extra?.unit ?? ""} onChange={(e) => extra && setExtra({ ...extra, unit: e.target.value })} required sx={{ width: 120, flexShrink: 0 }} />
+            </Stack>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setExtra(null)}>Cancelar</Button>
+          <Button variant="contained" disabled={!extraValid} onClick={addLine}>
+            Adicionar e conferir
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }

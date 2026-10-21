@@ -83,4 +83,36 @@ describe("recebimento por nota fiscal", () => {
     expect(photo.mock.calls.map(([id]) => id)).toEqual(["2", "3"]);
     expect(screen.getByText(/2 item\(ns\) ou unidade\(s\) nova\(s\)/)).toBeTruthy();
   });
+
+  it("adiciona à mão um item que a leitura não encontrou", async () => {
+    vi.spyOn(inventoryService, "listItems").mockResolvedValue({ items: [bateria], total: 1 });
+    vi.spyOn(inventoryService, "listLocations").mockResolvedValue({
+      items: [{ id: "loc-a", name: "Paiol A", location_type: "estoque", is_active: true, created_at: "" }],
+      total: 1,
+    });
+    vi.spyOn(inventoryService, "readInvoice").mockResolvedValue({
+      invoice_id: "nf-2", supplier_name: null, supplier_cnpj: null, number: "77", series: null, issue_date: null,
+      total_value: null, access_key: null, lines: [], uncertain_fields: [], suggestions: [], already_received: null,
+    });
+    const { container } = renderWithProviders(
+      <MemoryRouter>
+        <InvoiceReceiptPage />
+      </MemoryRouter>,
+    );
+    await screen.findByRole("button", { name: "Ler nota fiscal" });
+    const input = [...container.querySelectorAll<HTMLInputElement>('input[type="file"]')].find((entry) => entry.accept.includes("application/pdf"))!;
+    fireEvent.change(input, { target: { files: [new File(["x"], "nota.png", { type: "image/png" })] } });
+    fireEvent.click(screen.getByRole("button", { name: "Ler nota fiscal" }));
+
+    expect((await screen.findByRole("button", { name: /Começar conferência/ })).hasAttribute("disabled")).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar item que não foi lido" }));
+    fireEvent.change(screen.getByLabelText(/Nome do material/), { target: { value: "Cabo de aço 6 mm" } });
+    fireEvent.change(screen.getByLabelText(/Quantidade na nota/), { target: { value: "4" } });
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar e conferir" }));
+
+    const start = await screen.findByRole("button", { name: "Começar conferência (1 item)" });
+    expect(start.hasAttribute("disabled")).toBe(false);
+    fireEvent.click(start);
+    expect(await screen.findByText("Cabo de aço 6 mm")).toBeTruthy();
+  });
 });
