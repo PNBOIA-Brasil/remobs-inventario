@@ -2,6 +2,11 @@
 
 ## [2026-10-21]
 
+### Publicado — adicionar item rápido na nota fiscal
+- Produção: frontend no Amplify job `52` `SUCCEED` (app `d1oidnxd2f4saq`, branch `prod`), bundle `index-BTnbkPUk.js`, cache PWA `v27`; assets, `/app/receipts/invoice` e rotas com id respondem 200. Backend inalterado (`remobs-inventario-backend:22`, rollout `COMPLETED`).
+- Incidente: o job `51` subiu um zip do `Compress-Archive` (PowerShell 5.1) com separador `\`; os arquivos de `assets/` ficaram fora do caminho e o site respondeu 404 nos scripts por poucos minutos até o job `52`, com o zip gerado em Python (`/`). Para deploy manual, zipar com caminhos `/` e conferir um asset com `curl` antes de encerrar.
+- Rollback: republicar o `dist` do commit `4cfa600` (job 50).
+
 ### Adicionado — adicionar item rápido no recebimento por nota fiscal
 - Nas etapas Dados e Revisão do recebimento por nota, o botão "Adicionar item que não foi lido" abre um diálogo (nome, quantidade na nota, unidade) e inclui a linha na conferência, com "cadastrar item novo" como padrão para quem pode criar. Nota lida sem itens deixa de travar a conferência. Somente frontend; cache PWA `v27`. Plano: `planos/2026-10-21-nf-adicionar-item-rapido.md`.
 
