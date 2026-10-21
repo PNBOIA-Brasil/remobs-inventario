@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [2026-10-21]
+
+### Adicionado — adicionar item rápido no recebimento por nota fiscal
+- Nas etapas Dados e Revisão do recebimento por nota, o botão "Adicionar item que não foi lido" abre um diálogo (nome, quantidade na nota, unidade) e inclui a linha na conferência, com "cadastrar item novo" como padrão para quem pode criar. Nota lida sem itens deixa de travar a conferência. Somente frontend; cache PWA `v27`. Plano: `planos/2026-10-21-nf-adicionar-item-rapido.md`.
+
 ## [2026-10-17]
 
 ### Publicado — entregas de 2026-10-16

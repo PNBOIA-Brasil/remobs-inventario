@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { initialDecision } from "../src/pages/InvoiceReceiptPage";
+import { initialDecision, manualLine } from "../src/pages/InvoiceReceiptPage";
 import type { InvoiceLine } from "../src/services/inventoryService";
 
 const line: InvoiceLine = {
@@ -37,5 +37,11 @@ describe("initialDecision — padrão da conferência por nota fiscal", () => {
     );
     expect(decision.newName).toBe("Furadeira de impacto");
     expect(decision.newSerial).toBe("SN-12345");
+  });
+
+  it("item adicionado à mão entra com a quantidade informada, sem divergência", () => {
+    const added = manualLine("  Cabo de aço 6 mm ", 4, "");
+    expect(added).toMatchObject({ description: "Cabo de aço 6 mm", unit: "un", quantity: 4, supplier_code: null });
+    expect(initialDecision(added, [], true).quantity).toBe("4");
   });
 });
